@@ -1,0 +1,19 @@
+Virtual machine:
+- Java, Python (java script?)
+- VM does CPU/HW emulation
+- byte code in -> VM -> programs behaviour
+- some JIT mixed in too for just in time compilation
+
+Runtime:
+- service during program execution supporting:
+    - garbage collection
+    - type tracking
+- VM needs the runtime executing in addition to the byte code interpretation
+- a compiled language (Go) needs to compile with the runtime environment
+- this means garbage collection and type tracking a part of the executable
+
+Compiler vs Interpreter:
+- compiler produces alternative form from source code - IR, another source file, machine code, byte code
+    - it does not execute it
+- interpreter executes when it is run, maybe it translates source code, but it also starts running it
+
