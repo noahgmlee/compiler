@@ -219,7 +219,7 @@ func (l *Lexer) ScanToken() {
 				if is_keyword {
 					l.addToken(token_type)
 				} else {
-					l.addToken(IDENTIFIER)
+					l.addTokenLiteral(IDENTIFIER, text)
 				}
 			} else {
 				error(l.line, "Unexpected character.")
