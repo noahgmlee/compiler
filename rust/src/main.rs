@@ -6,18 +6,38 @@ use std::io::{self, Write};
 mod lexer;
 use lexer::*;
 
+mod ast;
+use ast::*;
+
+const AST_PRINTER: bool  = false;
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let arg_count = args.len() - 1;
 
-    if arg_count > 1 {
-        println!("Usage: lox/lox.exe [script]");
-        process::exit(64);
-    } else if arg_count == 1 {
-        let temp_arg = args[1].clone();
-        run_file(temp_arg);
+    if AST_PRINTER {
+        let expression = Expr::Binary(BinaryExpr::new(
+            Box::new(Expr::Unary(UnaryExpr::new(
+                Token::new(TokenType::Minus, "-".to_string(), 1),
+                Box::new(Expr::Literal(LiteralExpr::new(TokenType::Number("123.0".to_string())))),
+            ))),
+            Token::new(TokenType::Star, "*".to_string(), 1),
+            Box::new(Expr::Grouping(GroupingExpr::new(
+                Box::new(Expr::Literal(LiteralExpr::new(TokenType::Number("45.67".to_string())))),
+            )),
+        )));
+        let mut printer = ast::ASTPrinter;
+        println!("{}", printer.print(&expression));
     } else {
-        run_prompt();
+        if arg_count > 1 {
+            println!("Usage: lox/lox.exe [script]");
+            process::exit(64);
+        } else if arg_count == 1 {
+            let temp_arg = args[1].clone();
+            run_file(temp_arg);
+        } else {
+            run_prompt();
+        }
     }
 }
 

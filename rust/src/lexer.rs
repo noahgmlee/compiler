@@ -28,7 +28,8 @@ pub enum TokenType {
   // Literals
   Identifier,
   String(String),
-  Number(f64),
+  Number(String), // The number literal is always in text format from the lexer
+                  // Some string -> int or string -> float conversion will take place eventually
 
   // Keywords
   And,

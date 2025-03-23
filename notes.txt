@@ -17,3 +17,14 @@ Compiler vs Interpreter:
     - it does not execute it
 - interpreter executes when it is run, maybe it translates source code, but it also starts running it
 
+Context free grammars:
+- define the rules that the language must follow
+- the rules in the books example are allowable substitions
+    - sometimes substitutions also have their own allowable substitutions
+    - eventually the substitions tree has a terminal point.
+
+A good point on OOP vs functional for representing AST Expressions:
+- OOP is nice to group implementations onto expression types (interpret, resolve and analyze) a Binary vs Unary Expression
+    - should a new function be added it becomes tedious to maintain
+- Functional allows a single function to handle "interpret" for all objects
+    - should a new object (expression type) be added it becomes tedious to maintain
