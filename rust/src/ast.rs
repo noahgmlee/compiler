@@ -68,7 +68,8 @@ impl GroupingExpr {
 }
 
 pub struct LiteralExpr {
-  value: TokenType,
+  token_type: TokenType,
+  literal: String,
 }
 
 impl<R> AcceptExprVisitor<R> for LiteralExpr {
@@ -78,8 +79,8 @@ impl<R> AcceptExprVisitor<R> for LiteralExpr {
 }
 
 impl LiteralExpr {
-  pub fn new(value: TokenType) -> Self {
-    Self { value }
+  pub fn new(token_type: TokenType, literal: String) -> Self {
+    Self { token_type, literal }
   }
 }
 
@@ -116,11 +117,7 @@ impl ExprVisitor<String> for ASTPrinter {
   }
 
   fn visitLiteralExpr(&mut self, expr: &LiteralExpr) -> String {
-    return match &expr.value {
-      TokenType::String(s) => s.clone(),
-      TokenType::Number(n) => n.clone(),
-      _ => format!("INVALID"),
-    };
+    return expr.literal.to_string();
   }
 
   fn visitUnaryExpr(&mut self, expr: &UnaryExpr) -> String {

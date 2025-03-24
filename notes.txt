@@ -28,3 +28,14 @@ A good point on OOP vs functional for representing AST Expressions:
     - should a new function be added it becomes tedious to maintain
 - Functional allows a single function to handle "interpret" for all objects
     - should a new object (expression type) be added it becomes tedious to maintain
+
+Parsing:
+- we want deterministic handling of the:
+    - derived expressions from the lexer (token stream)
+    - tree representation of expressions
+- operators must have a precedence and an associativity
+- precedence is the relative importance (what must be evaluated before other operators)
+- associativity is kind of like presedence relative to itself (left first or right first)
+- precedence is achieved by defining each grammars allowable matching to include that which is one precedence level higher
+    - this way all branches reach a terminal expression
+    - Nystrom builds a recursive decent parser, so we CANNOT have left-recursive matching. this will create infinite loops

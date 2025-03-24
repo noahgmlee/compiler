@@ -1,6 +1,7 @@
 use std::fmt;
+use crate::logging::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
   // Single-character tokens
   LeftParen,
@@ -27,8 +28,8 @@ pub enum TokenType {
 
   // Literals
   Identifier,
-  String(String),
-  Number(String), // The number literal is always in text format from the lexer
+  String,
+  Number, // The number literal is always in text format from the lexer
                   // Some string -> int or string -> float conversion will take place eventually
 
   // Keywords
@@ -52,16 +53,17 @@ pub enum TokenType {
   Eof,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
   pub token_type: TokenType,
   pub token: String,
+  pub literal: String,
   pub line: usize,
 }
 
 impl Token {
-  pub fn new(token_type: TokenType, token: String, line: usize) -> Self {
-    Self { token_type, token, line }
+  pub fn new(token_type: TokenType, token: String, literal: String, line: usize) -> Self {
+    Self { token_type, token, literal, line }
   }
 }
 
@@ -76,7 +78,7 @@ pub struct Lexer {
   tokens: Vec<Token>,
   start: u32,
   current: u32,
-  line: u32,
+  line: usize,
 }
 
 impl Lexer {
@@ -97,7 +99,7 @@ impl Lexer {
           self.scan_token();
       }
 
-      self.tokens.push(Token::new(TokenType::Eof, String::from(""), self.line as usize));
+      self.tokens.push(Token::new(TokenType::Eof, String::from(""), String::from(""), self.line as usize));
       &self.tokens
   }
 
@@ -157,7 +159,7 @@ impl Lexer {
               } else if c.is_alphabetic() {
                   self.identifier();
               } else {
-                  eprintln!("Unexpected character: {}", c);
+                error_at_line(self.line, "Unexpected character.");
               }
           }
       }
@@ -165,7 +167,12 @@ impl Lexer {
 
   fn add_token(&mut self, token_type: TokenType) {
       let text = self.source[self.start as usize..self.current as usize].to_string();
-      self.tokens.push(Token::new(token_type, text, self.line as usize));
+      self.tokens.push(Token::new(token_type, text, String::from(""), self.line as usize));
+  }
+
+  fn add_token_literal(&mut self, token_type: TokenType, literal: String) {
+    let text = self.source[self.start as usize..self.current as usize].to_string();
+    self.tokens.push(Token::new(token_type, text, literal, self.line as usize));
   }
 
   fn match_char(&mut self, expected: char) -> bool {
@@ -209,7 +216,7 @@ impl Lexer {
       self.advance();
 
       let value = self.source[self.start as usize + 1..self.current as usize - 1].to_string();
-      self.add_token(TokenType::String(value));
+      self.add_token_literal(TokenType::String, value);
   }
 
   fn number(&mut self) {
@@ -226,7 +233,7 @@ impl Lexer {
       }
 
       let value = self.source[self.start as usize..self.current as usize].parse().unwrap();
-      self.add_token(TokenType::Number(value));
+      self.add_token_literal(TokenType::Number, value);
   }
 
   fn peek_next(&self) -> char {
