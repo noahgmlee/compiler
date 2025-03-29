@@ -1,6 +1,6 @@
 use crate::lexer::*;
 
-trait ExprVisitor<R> {
+pub trait ExprVisitor<R> {
   #[allow(non_snake_case)]
   fn visitBinaryExpr(&mut self, expr: &BinaryExpr) -> R;
   #[allow(non_snake_case)]
@@ -34,9 +34,9 @@ impl<R> AcceptExprVisitor<R> for Expr {
 }
 
 pub struct BinaryExpr {
-  left: Box<Expr>,
-  operator: Token,
-  right: Box<Expr>,
+  pub left: Box<Expr>,
+  pub operator: Token,
+  pub right: Box<Expr>,
 }
 
 impl<R> AcceptExprVisitor<R> for BinaryExpr {
@@ -52,7 +52,7 @@ impl BinaryExpr {
 }
 
 pub struct GroupingExpr {
-  expression: Box<Expr>,
+  pub expression: Box<Expr>,
 }
 
 impl<R> AcceptExprVisitor<R> for GroupingExpr {
@@ -68,8 +68,8 @@ impl GroupingExpr {
 }
 
 pub struct LiteralExpr {
-  token_type: TokenType,
-  literal: String,
+  pub token_type: TokenType,
+  pub literal: LoxValue,
 }
 
 impl<R> AcceptExprVisitor<R> for LiteralExpr {
@@ -79,14 +79,14 @@ impl<R> AcceptExprVisitor<R> for LiteralExpr {
 }
 
 impl LiteralExpr {
-  pub fn new(token_type: TokenType, literal: String) -> Self {
+  pub fn new(token_type: TokenType, literal: LoxValue) -> Self {
     Self { token_type, literal }
   }
 }
 
 pub struct UnaryExpr {
-  operator: Token,
-  right: Box<Expr>,
+  pub operator: Token,
+  pub right: Box<Expr>,
 }
 
 impl<R> AcceptExprVisitor<R> for UnaryExpr {
@@ -117,7 +117,15 @@ impl ExprVisitor<String> for ASTPrinter {
   }
 
   fn visitLiteralExpr(&mut self, expr: &LiteralExpr) -> String {
-    return expr.literal.to_string();
+    match expr.token_type {
+      TokenType::String => format!("\"{:?}\"", expr.literal),
+      TokenType::Number => format!("{:?}", expr.literal),
+      TokenType::Identifier => format!("{:?}", expr.literal),
+      TokenType::True => "true".to_string(),
+      TokenType::False => "false".to_string(),
+      TokenType::Nil => "nil".to_string(),
+      _ => panic!("Unexpected token type in LiteralExpr"),
+    }
   }
 
   fn visitUnaryExpr(&mut self, expr: &UnaryExpr) -> String {

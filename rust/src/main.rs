@@ -15,6 +15,9 @@ use parser::*;
 mod logging;
 use logging::*;
 
+mod interpreter;
+use interpreter::*;
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let arg_count = args.len() - 1;
@@ -70,8 +73,8 @@ fn run(source: String) {
     let expression_res = parser.parse();
     match expression_res {
         Ok(expr) => {
-            let mut printer = ast::ASTPrinter;
-            println!("{}", printer.print(&expr));
+            let mut interpreter = interpreter::Interpreter::new();
+            interpreter.interpret(&expr);
         },
         Err(_) => {
             eprintln!("parser error!");

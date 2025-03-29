@@ -90,25 +90,25 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Result<Expr, ParserError> {
-        let token_string = self.peek().token.to_string();
+        let token = self.peek();
         if self.match_tokens(vec![TokenType::False]) {
-            return Ok(Expr::Literal(LiteralExpr::new(TokenType::False, token_string.clone())));
+            return Ok(Expr::Literal(LiteralExpr::new(TokenType::False, LoxValue::Boolean(false))));
         }
         if self.match_tokens(vec![TokenType::True]) {
-            return Ok(Expr::Literal(LiteralExpr::new(TokenType::True, token_string.clone())));
+            return Ok(Expr::Literal(LiteralExpr::new(TokenType::True, LoxValue::Boolean(true))));
         }
         if self.match_tokens(vec![TokenType::Nil]) {
-            return Ok(Expr::Literal(LiteralExpr::new(TokenType::Nil, token_string.clone())));
+            return Ok(Expr::Literal(LiteralExpr::new(TokenType::Nil, LoxValue::Nil)));
         }
         if self.match_tokens(vec![TokenType::Number]) {
-            return Ok(Expr::Literal(LiteralExpr::new(TokenType::Number, token_string.clone())));
+            return Ok(Expr::Literal(LiteralExpr::new(TokenType::Number, token.literal.clone())));
         }
         if self.match_tokens(vec![TokenType::String]) {
-            return Ok(Expr::Literal(LiteralExpr::new(TokenType::String, token_string.clone())));
+            return Ok(Expr::Literal(LiteralExpr::new(TokenType::String, token.literal.clone())));
         }
         if self.match_tokens(vec![TokenType::LeftParen]) {
             let expr = self.expression()?;
-            let noop = self.consume(TokenType::RightParen, "Expect ')' after expression.")?;
+            let _noop = self.consume(TokenType::RightParen, "Expect ')' after expression.")?;
             return Ok(Expr::Grouping(GroupingExpr::new(Box::new(expr))));
         }
         let token = self.peek();

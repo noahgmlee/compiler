@@ -2,6 +2,14 @@ use std::fmt;
 use crate::logging::*;
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum LoxValue {
+  Number(f64),
+  String(String),
+  Boolean(bool),
+  Nil,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
   // Single-character tokens
   LeftParen,
@@ -57,12 +65,12 @@ pub enum TokenType {
 pub struct Token {
   pub token_type: TokenType,
   pub token: String,
-  pub literal: String,
+  pub literal: LoxValue,
   pub line: usize,
 }
 
 impl Token {
-  pub fn new(token_type: TokenType, token: String, literal: String, line: usize) -> Self {
+  pub fn new(token_type: TokenType, token: String, literal: LoxValue, line: usize) -> Self {
     Self { token_type, token, literal, line }
   }
 }
@@ -99,7 +107,7 @@ impl Lexer {
           self.scan_token();
       }
 
-      self.tokens.push(Token::new(TokenType::Eof, String::from(""), String::from(""), self.line as usize));
+      self.tokens.push(Token::new(TokenType::Eof, String::from(""), LoxValue::Nil, self.line as usize));
       &self.tokens
   }
 
@@ -167,10 +175,10 @@ impl Lexer {
 
   fn add_token(&mut self, token_type: TokenType) {
       let text = self.source[self.start as usize..self.current as usize].to_string();
-      self.tokens.push(Token::new(token_type, text, String::from(""), self.line as usize));
+      self.tokens.push(Token::new(token_type, text, LoxValue::Nil, self.line as usize));
   }
 
-  fn add_token_literal(&mut self, token_type: TokenType, literal: String) {
+  fn add_token_literal(&mut self, token_type: TokenType, literal: LoxValue) {
     let text = self.source[self.start as usize..self.current as usize].to_string();
     self.tokens.push(Token::new(token_type, text, literal, self.line as usize));
   }
@@ -216,7 +224,7 @@ impl Lexer {
       self.advance();
 
       let value = self.source[self.start as usize + 1..self.current as usize - 1].to_string();
-      self.add_token_literal(TokenType::String, value);
+      self.add_token_literal(TokenType::String, LoxValue::String(value));
   }
 
   fn number(&mut self) {
@@ -232,8 +240,8 @@ impl Lexer {
           }
       }
 
-      let value = self.source[self.start as usize..self.current as usize].parse().unwrap();
-      self.add_token_literal(TokenType::Number, value);
+      let value = self.source[self.start as usize..self.current as usize].parse::<f64>().expect("Failed to parse number");
+      self.add_token_literal(TokenType::Number, LoxValue::Number(value));
   }
 
   fn peek_next(&self) -> char {
