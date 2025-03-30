@@ -9,6 +9,18 @@ pub enum LoxValue {
   Nil,
 }
 
+// Implementing Display for custom formatting
+impl fmt::Display for LoxValue {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+      match self {
+          LoxValue::Number(n) => write!(f, "{}", n),
+          LoxValue::String(s) => write!(f, "{}", s),
+          LoxValue::Boolean(b) => write!(f, "{}", b),
+          LoxValue::Nil => write!(f, "nil"),
+      }
+  }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
   // Single-character tokens

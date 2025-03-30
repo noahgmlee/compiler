@@ -7,16 +7,15 @@ mod lexer;
 use lexer::*;
 
 mod ast;
-use ast::*;
 
 mod parser;
 use parser::*;
 
 mod logging;
-use logging::*;
 
 mod interpreter;
-use interpreter::*;
+
+mod environment;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -70,11 +69,11 @@ fn run(source: String) {
 	let mut lexer : lexer::Lexer = Lexer::new(source);
 	let tokens :&Vec<lexer::Token> = lexer.scan_tokens();
 	let mut parser : parser::Parser = Parser::new(tokens.clone());
-    let expression_res = parser.parse();
-    match expression_res {
-        Ok(expr) => {
+    let statements = parser.parse();
+    match statements {
+        Ok(stmts) => {
             let mut interpreter = interpreter::Interpreter::new();
-            interpreter.interpret(&expr);
+            interpreter.interpret(&stmts);
         },
         Err(_) => {
             eprintln!("parser error!");

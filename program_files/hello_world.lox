@@ -1,2 +1,5 @@
 // Your first Lox program!
 print "Hello, world!";
+print true;
+print "one";
+print 2 + 1;

@@ -1,9 +1,11 @@
-use std::backtrace;
-
 use crate::ast::*;
+use crate::environment;
 use crate::lexer::*;
+use crate::environment::*;
 
-pub struct Interpreter {}
+pub struct Interpreter {
+  environment: Environment,
+}
 
 // This is the error type for "RunTime" errors in our itnerpreter
 pub struct InterpreterError {
@@ -23,28 +25,57 @@ impl InterpreterError {
 
 impl Interpreter {
   pub fn new() -> Self {
-    Self {}
+    let environment = Environment::new();
+    Self { environment }
   }
 
-  pub fn interpret(&mut self, expr: &Expr) {
-    let result = self.evaluate(expr);
-    match result {
-      Ok(value) => {
-        println!("{:?}", value);
-      }
-      Err(err) => {
-        err.print();
+  pub fn interpret(&mut self, stmts: &Vec<Stmt>) {
+    for stmt in stmts {
+      let result = self.execute(stmt);
+      match result {
+        Ok(_) => {},
+        Err(err) => {
+          err.print();
+        }
       }
     }
+  }
+
+  pub fn execute(&mut self, stmt: &Stmt) -> Result<(), InterpreterError> {
+    match stmt {
+      Stmt::Block(stmt) => self.visitBlockStmt(stmt),
+      Stmt::Expression(expr) => self.visitExpressionStmt(expr),
+      Stmt::Print(expr) => self.visitPrintStmt(expr),
+      Stmt::Var(expr) => self.visitVarStmt(expr),
+    }
+  }
+
+  pub fn execute_block(&mut self, block: &BlockStmt) -> Result<(), InterpreterError> {
+    let enclosed_env = Environment::new_enclosed(self.environment.clone());
+    let prev_environment= std::mem::replace(&mut self.environment, enclosed_env);
+    for statement in &block.statements {
+      let res = self.execute(statement);
+      match res {
+        Ok(_) => {},
+        Err(err) => {
+          self.environment = prev_environment;
+          return Err(err);
+        }
+      }
+    }
+    self.environment = prev_environment;
+    Ok(())
   }
 
   // Okay so visitor pattern doesn't really need to be implemented here...
   pub fn evaluate(&mut self, expr: &Expr) -> Result<LoxValue, InterpreterError> {
     match expr {
+      Expr::Assign(expr) => self.visitAssignExpression(expr),
       Expr::Binary(expr) => self.visitBinaryExpr(expr),
       Expr::Grouping(expr) => self.visitGroupingExpr(expr),
       Expr::Literal(expr) => self.visitLiteralExpr(expr),
       Expr::Unary(expr) => self.visitUnaryExpr(expr),
+      Expr::Variable(expr) => self.visitVariableExpression(expr),
     }
   }
 
@@ -233,5 +264,56 @@ impl ExprVisitor<Result<LoxValue, InterpreterError>> for Interpreter {
     }
 
     Ok(LoxValue::Nil)
+  }
+
+  fn visitVariableExpression(&mut self, expr: &VariableExpr) -> Result<LoxValue, InterpreterError> {
+    let value = self.environment.get(&expr.name.token);
+    match value {
+      Ok(v) => Ok(v),
+      Err(msg) => Err(InterpreterError::new(
+        expr.name.clone(),
+        msg,
+      )),
+    }
+  }
+
+  fn visitAssignExpression(&mut self, expr: &AssignExpr) -> Result<LoxValue, InterpreterError> {
+    let value = self.evaluate(&expr.value)?;
+    let is_ok = self.environment.assign(expr.name.token.clone(), value.clone());
+    if let Err(msg) = is_ok {
+      return Err(InterpreterError::new(
+        expr.name.clone(),
+        msg,
+      ));
+    }
+    Ok(value)
+  }
+}
+
+impl StmtVisitor<Result<(), InterpreterError>> for Interpreter {
+  fn visitBlockStmt(&mut self, stmt: &BlockStmt) -> Result<(), InterpreterError> {
+    self.execute_block(stmt)?;
+    Ok(())
+  }
+
+  fn visitExpressionStmt(&mut self, stmt: &ExprStmt) -> Result<(), InterpreterError> {
+    self.evaluate(&stmt.expression)?;
+    Ok(())
+  }
+
+  fn visitPrintStmt(&mut self, stmt: &PrintStmt) -> Result<(), InterpreterError> {
+    let value = self.evaluate(&stmt.expression)?;
+    println!("{}", value);
+    Ok(())
+  }
+
+  fn visitVarStmt(&mut self, stmt: &VarStmt) -> Result<(), InterpreterError> {
+    let value = if let Some(initializer) = &stmt.initializer {
+      self.evaluate(initializer)?
+    } else {
+      LoxValue::Nil
+    };
+    self.environment.define(stmt.name.token.clone(), value);
+    Ok(())
   }
 }

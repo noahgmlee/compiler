@@ -32,12 +32,95 @@ impl Parser {
         Self { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> Result<Expr, ParserError> {
-        self.expression()
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, ParserError> {
+        let mut statements = Vec::new();
+        let mut had_error = false;
+        while !self.is_at_end() {
+            match self.declaration() {
+                Ok(stmt) => {
+                  statements.push(stmt);
+                }
+                Err(_) => {
+                  self.synchronize();
+                  had_error = true;
+                }
+            }
+        }
+        if had_error {
+            return Err(ParserError {});
+        }
+        return Ok(statements);
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, ParserError> {
+        if self.match_tokens(vec![TokenType::Var]) {
+            return self.var_declaration();
+        }
+        self.statement()
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, ParserError> {
+        let name = self.consume(TokenType::Identifier, "Expect variable name.")?;
+        let initializer = if self.match_tokens(vec![TokenType::Equal]) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+        self.consume(TokenType::Semicolon, "Expect ';' after variable declaration.")?;
+        Ok(Stmt::Var(VarStmt::new(name, initializer)))
+    }
+
+    fn statement(&mut self) -> Result<Stmt, ParserError> {
+        if self.match_tokens(vec![TokenType::Print]) {
+            return self.print_statement();
+        }
+        if self.match_tokens(vec![TokenType::LeftBrace]) {
+            return Ok(Stmt::Block(BlockStmt::new(self.block()?)));
+        }
+        self.expression_statement()
+    }
+
+    fn block(&mut self) -> Result<Vec<Stmt>, ParserError> {
+        let mut statements = Vec::new();
+        while !self.is_at_end() && !self.check(TokenType::RightBrace) {
+            match self.declaration() {
+                Ok(stmt) => statements.push(stmt),
+                Err(_) => {
+                  return Err(ParserError{});
+                }
+            }
+        }
+        self.consume(TokenType::RightBrace, "Expect '}' after block.")?;
+        Ok(statements)
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, ParserError> {
+        let value = self.expression()?;
+        self.consume(TokenType::Semicolon, "Expect ';' after value.")?;
+        Ok(Stmt::Print(PrintStmt{expression : Box::new(value)}))
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, ParserError> {
+        let expr = self.expression()?;
+        self.consume(TokenType::Semicolon, "Expect ';' after expression.")?;
+        Ok(Stmt::Expression(ExprStmt{ expression : Box::new(expr)}))
     }
 
     fn expression(&mut self) -> Result<Expr, ParserError> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expr, ParserError> {
+        let expr = self.equality()?;
+        if self.match_tokens(vec![TokenType::Equal]) {
+            let equals = self.previous();
+            let value = self.assignment()?;
+            if let Expr::Variable(var) = expr {
+                return Ok(Expr::Assign(AssignExpr::new(var.name, Box::new(value))));
+            }
+            self.error(equals, "Invalid assignment target.");
+        }
+        Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Expr, ParserError> {
@@ -105,6 +188,9 @@ impl Parser {
         }
         if self.match_tokens(vec![TokenType::String]) {
             return Ok(Expr::Literal(LiteralExpr::new(TokenType::String, token.literal.clone())));
+        }
+        if self.match_tokens(vec![TokenType::Identifier]) {
+            return Ok(Expr::Variable(VariableExpr{name : token.clone()}));
         }
         if self.match_tokens(vec![TokenType::LeftParen]) {
             let expr = self.expression()?;
