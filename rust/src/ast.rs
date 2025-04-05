@@ -15,10 +15,8 @@ pub trait ExprVisitor<R> {
   fn visitUnaryExpr(&mut self, expr: &UnaryExpr) -> R;
   #[allow(non_snake_case)]
   fn visitVariableExpression(&mut self, expr: &VariableExpr) -> R;
-}
-
-trait AcceptExprVisitor<R> {
-  fn accept(&self, visitor: &mut dyn ExprVisitor<R>) -> R;
+  #[allow(non_snake_case)]
+  fn visitLogicalExpression(&mut self, expr: &LogicalExpr) -> R;
 }
 
 pub enum Expr {
@@ -28,29 +26,11 @@ pub enum Expr {
   Literal(LiteralExpr),
   Unary(UnaryExpr),
   Variable(VariableExpr),
+  Logical(LogicalExpr),
 }
-
-impl<R> AcceptExprVisitor<R> for Expr {
-  fn accept(&self, visitor: &mut dyn ExprVisitor<R>) -> R {
-    match self {
-      Expr::Assign(expr) => expr.accept(visitor),
-      Expr::Binary(expr) => expr.accept(visitor),
-      Expr::Grouping(expr) => expr.accept(visitor),
-      Expr::Literal(expr) => expr.accept(visitor),
-      Expr::Unary(expr) => expr.accept(visitor),
-      Expr::Variable(expr) => expr.accept(visitor),
-    }
-  }
-}
-
 pub struct AssignExpr {
   pub name: Token,
   pub value: Box<Expr>,
-}
-impl<R> AcceptExprVisitor<R> for AssignExpr {
-  fn accept(&self, visitor: &mut dyn ExprVisitor<R>) -> R {
-    visitor.visitAssignExpression(&self)
-  }
 }
 
 impl AssignExpr {
@@ -65,12 +45,6 @@ pub struct BinaryExpr {
   pub right: Box<Expr>,
 }
 
-impl<R> AcceptExprVisitor<R> for BinaryExpr {
-  fn accept(&self, visitor: &mut dyn ExprVisitor<R>) -> R {
-    visitor.visitBinaryExpr(self)
-  }
-}
-
 impl BinaryExpr {
   pub fn new(left: Box<Expr>, operator: Token, right: Box<Expr>) -> Self {
     Self { left, operator, right }
@@ -79,12 +53,6 @@ impl BinaryExpr {
 
 pub struct GroupingExpr {
   pub expression: Box<Expr>,
-}
-
-impl<R> AcceptExprVisitor<R> for GroupingExpr {
-  fn accept(&self, visitor: &mut dyn ExprVisitor<R>) -> R {
-    visitor.visitGroupingExpr(self)
-  }
 }
 
 impl GroupingExpr {
@@ -98,12 +66,6 @@ pub struct LiteralExpr {
   pub literal: LoxValue,
 }
 
-impl<R> AcceptExprVisitor<R> for LiteralExpr {
-  fn accept(&self, visitor: &mut dyn ExprVisitor<R>) -> R {
-    visitor.visitLiteralExpr(self)
-  }
-}
-
 impl LiteralExpr {
   pub fn new(token_type: TokenType, literal: LoxValue) -> Self {
     Self { token_type, literal }
@@ -113,12 +75,6 @@ impl LiteralExpr {
 pub struct UnaryExpr {
   pub operator: Token,
   pub right: Box<Expr>,
-}
-
-impl<R> AcceptExprVisitor<R> for UnaryExpr {
-  fn accept(&self, visitor: &mut dyn ExprVisitor<R>) -> R {
-    visitor.visitUnaryExpr(self)
-  }
 }
 
 impl UnaryExpr {
@@ -131,9 +87,15 @@ pub struct VariableExpr {
   pub name: Token,
 }
 
-impl<R> AcceptExprVisitor<R> for VariableExpr {
-  fn accept(&self, visitor: &mut dyn ExprVisitor<R>) -> R {
-    visitor.visitVariableExpression(&self)
+pub struct LogicalExpr {
+  pub left: Box<Expr>,
+  pub operator: Token,
+  pub right: Box<Expr>,
+}
+
+impl LogicalExpr {
+  pub fn new(left: Box<Expr>, operator: Token, right: Box<Expr>) -> Self {
+    Self { left, operator, right }
   }
 }
 
@@ -148,10 +110,12 @@ pub trait StmtVisitor<R> {
   fn visitPrintStmt(&mut self, stmt: &PrintStmt) -> R;
   #[allow(non_snake_case)]
   fn visitVarStmt(&mut self, stmt: &VarStmt) -> R;
-}
-
-pub trait AcceptStmtVisitor<R> {
-  fn accept(&self, visitor: &mut dyn StmtVisitor<R>) -> R;
+  #[allow(non_snake_case)]
+  fn visitIfStmt(&mut self, stmt: &IfStmt) -> R;
+  #[allow(non_snake_case)]
+  fn visitWhileStmt(&mut self, stmt: &WhileStmt) -> R;
+  #[allow(non_snake_case)]
+  fn visitForStmt(&mut self, stmt: &ForStmt) -> R;
 }
 
 pub enum Stmt {
@@ -159,48 +123,22 @@ pub enum Stmt {
   Expression(ExprStmt),
   Print(PrintStmt),
   Var(VarStmt),
-}
-
-impl<R> AcceptStmtVisitor<R> for Stmt {
-  fn accept(&self, visitor: &mut dyn StmtVisitor<R>) -> R {
-    match self {
-      Stmt::Block(block) => block.accept(visitor),
-      Stmt::Expression(expr) => expr.accept(visitor),
-      Stmt::Print(expr) => expr.accept(visitor),
-      Stmt::Var(expr) => expr.accept(visitor),
-    }
-  }
+  If(IfStmt),
+  While(WhileStmt),
+  For(ForStmt),
 }
 
 pub struct ExprStmt {
   pub expression: Box<Expr>,
 }
 
-impl <R> AcceptStmtVisitor<R> for ExprStmt {
-  fn accept(&self, visitor: &mut dyn StmtVisitor<R>) -> R {
-    visitor.visitExpressionStmt(self)
-  }
-}
-
 pub struct PrintStmt {
   pub expression: Box<Expr>,
-}
-
-impl <R> AcceptStmtVisitor<R> for PrintStmt {
-  fn accept(&self, visitor: &mut dyn StmtVisitor<R>) -> R {
-    visitor.visitPrintStmt(self)
-  }
 }
 
 pub struct VarStmt {
   pub name: Token,
   pub initializer: Option<Expr>,
-}
-
-impl <R> AcceptStmtVisitor<R> for VarStmt {
-  fn accept(&self, visitor: &mut dyn StmtVisitor<R>) -> R {
-    visitor.visitVarStmt(self)
-  }
 }
 
 impl VarStmt {
@@ -219,8 +157,38 @@ impl BlockStmt {
   }
 }
 
-impl <R> AcceptStmtVisitor<R> for BlockStmt {
-  fn accept(&self, visitor: &mut dyn StmtVisitor<R>) -> R {
-    visitor.visitBlockStmt(self)
+pub struct IfStmt {
+  pub condition: Box<Expr>,
+  pub then_branch: Box<Stmt>,
+  pub else_branch: Option<Box<Stmt>>,
+}
+
+impl IfStmt{
+  pub fn new(condition: Box<Expr>, then_branch: Box<Stmt>, else_branch: Option<Box<Stmt>>) -> Self {
+    Self { condition, then_branch, else_branch }
+  }
+}
+
+pub struct WhileStmt {
+  pub condition: Box<Expr>,
+  pub body: Box<Stmt>,
+}
+
+impl WhileStmt {
+  pub fn new(condition: Box<Expr>, body: Box<Stmt>) -> Self {
+    Self { condition, body }
+  }
+}
+
+pub struct ForStmt {
+  pub initializer: Option<Box<Stmt>>,
+  pub condition: Option<Box<Expr>>,
+  pub increment: Option<Box<Expr>>,
+  pub body: Box<Stmt>,
+}
+
+impl ForStmt {
+  pub fn new(initializer: Option<Box<Stmt>>, condition: Option<Box<Expr>>, increment: Option<Box<Expr>>, body: Box<Stmt>) -> Self {
+    Self { initializer, condition, increment, body }
   }
 }

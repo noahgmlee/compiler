@@ -1,10 +1,12 @@
 use crate::lexer::*;
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
 
-#[derive(Clone)]
+#[derive(Default)]
 pub struct Environment {
     values: HashMap<String, LoxValue>,
-    enclosing: Option<Box<Environment>>,
+    enclosing: Option<Rc<RefCell<Environment>>>,
 }
 
 impl Environment {
@@ -15,10 +17,10 @@ impl Environment {
         }
     }
 
-    pub fn new_enclosed(enclosing: Environment) -> Self {
+    pub fn new_enclosed(enclosing: Rc<RefCell<Environment>>) -> Self {
         Self {
             values: HashMap::new(),
-            enclosing: Some(Box::new(enclosing)),
+            enclosing: Some(enclosing),
         }
     }
 
@@ -32,7 +34,7 @@ impl Environment {
         }
 
         if let Some(enclosing) = &self.enclosing {
-            if let Ok(value) = enclosing.get(name) {
+            if let Ok(value) = enclosing.borrow().get(name) {
                 return Ok(value);
             }
         }
@@ -46,7 +48,7 @@ impl Environment {
         }
 
         if let Some(enclosing) = &mut self.enclosing {
-            if let Ok(_) = enclosing.assign(name.clone(), value) {
+            if let Ok(_) = enclosing.borrow_mut().assign(name.clone(), value) {
                 return Ok(());
             }
         }

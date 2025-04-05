@@ -1,6 +1,7 @@
 var a = "global a";
 var b = "global b";
 var c = "global c";
+var d;
 {
   var a = "outer a";
   var b = "outer b";
@@ -13,7 +14,9 @@ var c = "global c";
   print a;
   print b;
   print c;
+  d = "BINGBONG";
 }
 print a;
 print b;
 print c;
+print d;

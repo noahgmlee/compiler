@@ -1,0 +1,24 @@
+if (true and false)
+  print("hahaha");
+else
+  print("hehehe");
+
+if (true or false)
+  print("it was true");
+else
+  print("it was false");
+
+var a = 0;
+var temp;
+
+for (var b = 1; a < 10000; b = temp + b) {
+  print a;
+  temp = a;
+  a = b;
+}
+
+var i = 0;
+while(i < 10) {
+   print(i);
+   i = i + 1;
+}

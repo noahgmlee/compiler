@@ -1,10 +1,11 @@
 use crate::ast::*;
-use crate::environment;
 use crate::lexer::*;
 use crate::environment::*;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub struct Interpreter {
-  environment: Environment,
+  environment: Rc<RefCell<Environment>>,
 }
 
 // This is the error type for "RunTime" errors in our itnerpreter
@@ -25,8 +26,8 @@ impl InterpreterError {
 
 impl Interpreter {
   pub fn new() -> Self {
-    let environment = Environment::new();
-    Self { environment }
+    let env = Environment::new();
+    Self { environment: Rc::new(RefCell::new(env)), }
   }
 
   pub fn interpret(&mut self, stmts: &Vec<Stmt>) {
@@ -47,23 +48,28 @@ impl Interpreter {
       Stmt::Expression(expr) => self.visitExpressionStmt(expr),
       Stmt::Print(expr) => self.visitPrintStmt(expr),
       Stmt::Var(expr) => self.visitVarStmt(expr),
+      Stmt::If(expr) => self.visitIfStmt(expr),
+      Stmt::While(expr) => self.visitWhileStmt(expr),
+      Stmt::For(expr) => self.visitForStmt(expr),
     }
   }
 
   pub fn execute_block(&mut self, block: &BlockStmt) -> Result<(), InterpreterError> {
-    let enclosed_env = Environment::new_enclosed(self.environment.clone());
-    let prev_environment= std::mem::replace(&mut self.environment, enclosed_env);
+    // Take current environment (replacing it with a dummy one temporarily)
+    let prev = Rc::clone(&self.environment);
+    let enclosed_env = Environment::new_enclosed(Rc::clone(&self.environment));
+    self.environment = Rc::new(RefCell::new(enclosed_env));
     for statement in &block.statements {
       let res = self.execute(statement);
       match res {
         Ok(_) => {},
         Err(err) => {
-          self.environment = prev_environment;
+          self.environment = prev;
           return Err(err);
         }
       }
     }
-    self.environment = prev_environment;
+    self.environment = prev;
     Ok(())
   }
 
@@ -76,6 +82,7 @@ impl Interpreter {
       Expr::Literal(expr) => self.visitLiteralExpr(expr),
       Expr::Unary(expr) => self.visitUnaryExpr(expr),
       Expr::Variable(expr) => self.visitVariableExpression(expr),
+      Expr::Logical(expr) => self.visitLogicalExpression(expr),
     }
   }
 
@@ -267,7 +274,7 @@ impl ExprVisitor<Result<LoxValue, InterpreterError>> for Interpreter {
   }
 
   fn visitVariableExpression(&mut self, expr: &VariableExpr) -> Result<LoxValue, InterpreterError> {
-    let value = self.environment.get(&expr.name.token);
+    let value = self.environment.borrow().get(&expr.name.token);
     match value {
       Ok(v) => Ok(v),
       Err(msg) => Err(InterpreterError::new(
@@ -279,7 +286,7 @@ impl ExprVisitor<Result<LoxValue, InterpreterError>> for Interpreter {
 
   fn visitAssignExpression(&mut self, expr: &AssignExpr) -> Result<LoxValue, InterpreterError> {
     let value = self.evaluate(&expr.value)?;
-    let is_ok = self.environment.assign(expr.name.token.clone(), value.clone());
+    let is_ok = self.environment.borrow_mut().assign(expr.name.token.clone(), value.clone());
     if let Err(msg) = is_ok {
       return Err(InterpreterError::new(
         expr.name.clone(),
@@ -288,9 +295,56 @@ impl ExprVisitor<Result<LoxValue, InterpreterError>> for Interpreter {
     }
     Ok(value)
   }
+
+  fn visitLogicalExpression(&mut self, expr: &LogicalExpr) -> Result<LoxValue, InterpreterError> {
+    let left = self.evaluate(&expr.left)?;
+    if expr.operator.token_type == TokenType::Or {
+      if Interpreter::is_truthy(left.clone()) {
+        return Ok(left);
+      }
+    } else {
+      if !Interpreter::is_truthy(left.clone()) {
+        return Ok(left);
+      }
+    }
+    self.evaluate(&expr.right)
+  }
 }
 
 impl StmtVisitor<Result<(), InterpreterError>> for Interpreter {
+  fn visitForStmt(&mut self, stmt: &ForStmt) -> Result<(), InterpreterError> {
+    if let Some(initializer) = &stmt.initializer {
+      self.execute(initializer)?;
+    }
+    while match &stmt.condition {
+      Some(condition) => Interpreter::is_truthy(self.evaluate(condition)?),
+      None => true,
+    } {
+      self.execute(&stmt.body)?;
+      if let Some(increment) = &stmt.increment {
+        self.evaluate(increment)?;
+      }
+    }
+    Ok(())
+  }
+
+  fn visitWhileStmt(&mut self, stmt: &WhileStmt) -> Result<(), InterpreterError> {
+    while Interpreter::is_truthy(self.evaluate(&stmt.condition)?) {
+      self.execute(&stmt.body)?;
+    }
+    Ok(())
+  }
+
+  fn visitIfStmt(&mut self, stmt: &IfStmt) -> Result<(), InterpreterError> {
+    let condition = self.evaluate(&stmt.condition)?;
+    if Interpreter::is_truthy(condition) {
+      self.execute(&stmt.then_branch)?;
+    } else if let Some(else_branch) = &stmt.else_branch {
+      self.execute(else_branch)?;
+    }
+    Ok(())
+  }
+
   fn visitBlockStmt(&mut self, stmt: &BlockStmt) -> Result<(), InterpreterError> {
     self.execute_block(stmt)?;
     Ok(())
@@ -313,7 +367,7 @@ impl StmtVisitor<Result<(), InterpreterError>> for Interpreter {
     } else {
       LoxValue::Nil
     };
-    self.environment.define(stmt.name.token.clone(), value);
+    self.environment.borrow_mut().define(stmt.name.token.clone(), value);
     Ok(())
   }
 }

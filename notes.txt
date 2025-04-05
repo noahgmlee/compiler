@@ -38,4 +38,5 @@ Parsing:
 - associativity is kind of like presedence relative to itself (left first or right first)
 - precedence is achieved by defining each grammars allowable matching to include that which is one precedence level higher
     - this way all branches reach a terminal expression
-    - Nystrom builds a recursive decent parser, so we CANNOT have left-recursive matching. this will create infinite loops
+    - Nystrom builds a recursive descent parser, so we CANNOT have left-recursive matching. this will create infinite loops
+- recursive descent is really awesome! very easy to follow, clean impl
