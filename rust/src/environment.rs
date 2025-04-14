@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Environment {
     values: HashMap<String, LoxValue>,
     enclosing: Option<Rc<RefCell<Environment>>>,

@@ -1,14 +1,18 @@
 use crate::ast::*;
 use crate::lexer::*;
 use crate::environment::*;
+use crate::callable::*;
+use crate::stl::*;
 use std::rc::Rc;
 use std::cell::RefCell;
 
 pub struct Interpreter {
+  pub globals: Rc<RefCell<Environment>>,
   environment: Rc<RefCell<Environment>>,
 }
 
 // This is the error type for "RunTime" errors in our itnerpreter
+#[derive(Debug, Clone)]
 pub struct InterpreterError {
   pub final_token: Token,
   pub message: String,
@@ -26,8 +30,13 @@ impl InterpreterError {
 
 impl Interpreter {
   pub fn new() -> Self {
-    let env = Environment::new();
-    Self { environment: Rc::new(RefCell::new(env)), }
+    let mut globals = Environment::new();
+    globals.define(
+      "clock".to_string(),
+      LoxValue::Callable(Box::new(ClockCallable::new())),
+    );
+    let globals_ref = Rc::new(RefCell::new(globals));
+    Self { globals: globals_ref.clone(), environment: globals_ref.clone() }
   }
 
   pub fn interpret(&mut self, stmts: &Vec<Stmt>) {
@@ -48,16 +57,17 @@ impl Interpreter {
       Stmt::Expression(expr) => self.visitExpressionStmt(expr),
       Stmt::Print(expr) => self.visitPrintStmt(expr),
       Stmt::Var(expr) => self.visitVarStmt(expr),
+      Stmt::Fun(expr) => self.visitFunStmt(expr),
       Stmt::If(expr) => self.visitIfStmt(expr),
       Stmt::While(expr) => self.visitWhileStmt(expr),
       Stmt::For(expr) => self.visitForStmt(expr),
     }
   }
 
-  pub fn execute_block(&mut self, block: &BlockStmt) -> Result<(), InterpreterError> {
+  pub fn execute_block(&mut self, block: &BlockStmt, env: Rc<RefCell<Environment>>) -> Result<(), InterpreterError> {
     // Take current environment (replacing it with a dummy one temporarily)
-    let prev = Rc::clone(&self.environment);
-    let enclosed_env = Environment::new_enclosed(Rc::clone(&self.environment));
+    let prev = self.environment.clone();
+    let enclosed_env = Environment::new_enclosed(Rc::clone(&env));
     self.environment = Rc::new(RefCell::new(enclosed_env));
     for statement in &block.statements {
       let res = self.execute(statement);
@@ -78,6 +88,7 @@ impl Interpreter {
     match expr {
       Expr::Assign(expr) => self.visitAssignExpression(expr),
       Expr::Binary(expr) => self.visitBinaryExpr(expr),
+      Expr::Call(expr) => self.visitCallExpr(expr),
       Expr::Grouping(expr) => self.visitGroupingExpr(expr),
       Expr::Literal(expr) => self.visitLiteralExpr(expr),
       Expr::Unary(expr) => self.visitUnaryExpr(expr),
@@ -140,6 +151,7 @@ impl ExprVisitor<Result<LoxValue, InterpreterError>> for Interpreter {
       LoxValue::Nil => Ok(LoxValue::Nil),
       LoxValue::Number(n) => Ok(LoxValue::Number(n.clone())),
       LoxValue::String(s) => Ok(LoxValue::String(s.clone())),
+      LoxValue::Callable(c) => Ok(LoxValue::Callable(c.clone())),
       LoxValue::Boolean(b) => Ok(LoxValue::Boolean(b.clone())),
     }
   }
@@ -273,6 +285,41 @@ impl ExprVisitor<Result<LoxValue, InterpreterError>> for Interpreter {
     Ok(LoxValue::Nil)
   }
 
+  fn visitCallExpr(&mut self, expr: &CallExpr) -> Result<LoxValue, InterpreterError> {
+    let callee = self.evaluate(&expr.callee)?;
+    let mut arguments = Vec::new();
+    for arg in &expr.arguments {
+      arguments.push(self.evaluate(arg)?);
+    }
+    match callee {
+      LoxValue::Callable(mut callable) => { 
+        if arguments.len() != callable.arity() {
+          return Err(InterpreterError::new(
+            expr.paren.clone(),
+            format!(
+              "Expected {} arguments but got {}.",
+              callable.arity(),
+              arguments.len()
+            ),
+          ));
+        }
+        print!("Calling function with args: ");
+        for arg in &arguments {
+          print!("{:?} ", arg);
+        }
+        let retval = callable.call(self, arguments);
+        if let Ok(v) = retval.downcast::<LoxValue>() {
+          return Ok(*v);
+        }
+        return Ok(LoxValue::Nil);
+      }
+      _ => Err(InterpreterError::new(
+        expr.paren.clone(),
+        format!("{} is not callable.", callee),
+      )),
+    }
+  }
+
   fn visitVariableExpression(&mut self, expr: &VariableExpr) -> Result<LoxValue, InterpreterError> {
     let value = self.environment.borrow().get(&expr.name.token);
     match value {
@@ -346,7 +393,8 @@ impl StmtVisitor<Result<(), InterpreterError>> for Interpreter {
   }
 
   fn visitBlockStmt(&mut self, stmt: &BlockStmt) -> Result<(), InterpreterError> {
-    self.execute_block(stmt)?;
+
+    self.execute_block(stmt, self.environment.clone())?;
     Ok(())
   }
 
@@ -368,6 +416,12 @@ impl StmtVisitor<Result<(), InterpreterError>> for Interpreter {
       LoxValue::Nil
     };
     self.environment.borrow_mut().define(stmt.name.token.clone(), value);
+    Ok(())
+  }
+
+  fn visitFunStmt(&mut self, stmt: &FunStmt) -> Result<(), InterpreterError> {
+    let function = InterpretedFunction::new(stmt.clone());
+    self.environment.borrow_mut().define(stmt.name.token.clone(), LoxValue::Callable(Box::new(function)));
     Ok(())
   }
 }

@@ -1,11 +1,13 @@
 use std::fmt;
 use crate::logging::*;
+use crate::callable::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LoxValue {
   Number(f64),
   String(String),
   Boolean(bool),
+  Callable(Box<dyn LoxCallable>),
   Nil,
 }
 
@@ -16,6 +18,7 @@ impl fmt::Display for LoxValue {
           LoxValue::Number(n) => write!(f, "{}", n),
           LoxValue::String(s) => write!(f, "{}", s),
           LoxValue::Boolean(b) => write!(f, "{}", b),
+          LoxValue::Callable(c) => write!(f, "{:?}", c),
           LoxValue::Nil => write!(f, "nil"),
       }
   }

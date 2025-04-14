@@ -8,6 +8,8 @@ pub trait ExprVisitor<R> {
   #[allow(non_snake_case)]
   fn visitBinaryExpr(&mut self, expr: &BinaryExpr) -> R;
   #[allow(non_snake_case)]
+  fn visitCallExpr(&mut self, expr: &CallExpr) -> R;
+  #[allow(non_snake_case)]
   fn visitGroupingExpr(&mut self, expr: &GroupingExpr) -> R;
   #[allow(non_snake_case)]
   fn visitLiteralExpr(&mut self, expr: &LiteralExpr) -> R;
@@ -19,15 +21,18 @@ pub trait ExprVisitor<R> {
   fn visitLogicalExpression(&mut self, expr: &LogicalExpr) -> R;
 }
 
+#[derive(Clone, Debug)]
 pub enum Expr {
   Assign(AssignExpr),
   Binary(BinaryExpr),
+  Call(CallExpr),
   Grouping(GroupingExpr),
   Literal(LiteralExpr),
   Unary(UnaryExpr),
   Variable(VariableExpr),
   Logical(LogicalExpr),
 }
+#[derive(Clone, Debug)]
 pub struct AssignExpr {
   pub name: Token,
   pub value: Box<Expr>,
@@ -39,6 +44,7 @@ impl AssignExpr {
   }
 }
 
+#[derive(Clone, Debug)]
 pub struct BinaryExpr {
   pub left: Box<Expr>,
   pub operator: Token,
@@ -51,6 +57,20 @@ impl BinaryExpr {
   }
 }
 
+#[derive(Clone, Debug)]
+pub struct CallExpr {
+  pub callee: Box<Expr>,
+  pub paren: Token,
+  pub arguments: Vec<Expr>,
+}
+
+impl CallExpr {
+  pub fn new(callee: Box<Expr>, paren: Token, arguments: Vec<Expr>) -> Self {
+    Self { callee, paren, arguments }
+  }
+}
+
+#[derive(Clone, Debug)]
 pub struct GroupingExpr {
   pub expression: Box<Expr>,
 }
@@ -61,6 +81,7 @@ impl GroupingExpr {
   }
 }
 
+#[derive(Clone, Debug)]
 pub struct LiteralExpr {
   pub token_type: TokenType,
   pub literal: LoxValue,
@@ -72,6 +93,7 @@ impl LiteralExpr {
   }
 }
 
+#[derive(Clone, Debug)]
 pub struct UnaryExpr {
   pub operator: Token,
   pub right: Box<Expr>,
@@ -83,10 +105,12 @@ impl UnaryExpr {
   }
 }
 
+#[derive(Clone, Debug)]
 pub struct VariableExpr {
   pub name: Token,
 }
 
+#[derive(Clone, Debug)]
 pub struct LogicalExpr {
   pub left: Box<Expr>,
   pub operator: Token,
@@ -111,6 +135,8 @@ pub trait StmtVisitor<R> {
   #[allow(non_snake_case)]
   fn visitVarStmt(&mut self, stmt: &VarStmt) -> R;
   #[allow(non_snake_case)]
+  fn visitFunStmt(&mut self, stmt: &FunStmt) -> R;
+  #[allow(non_snake_case)]
   fn visitIfStmt(&mut self, stmt: &IfStmt) -> R;
   #[allow(non_snake_case)]
   fn visitWhileStmt(&mut self, stmt: &WhileStmt) -> R;
@@ -118,24 +144,29 @@ pub trait StmtVisitor<R> {
   fn visitForStmt(&mut self, stmt: &ForStmt) -> R;
 }
 
+#[derive(Clone, Debug)]
 pub enum Stmt {
   Block(BlockStmt),
   Expression(ExprStmt),
   Print(PrintStmt),
   Var(VarStmt),
+  Fun(FunStmt),
   If(IfStmt),
   While(WhileStmt),
   For(ForStmt),
 }
 
+#[derive(Clone, Debug)]
 pub struct ExprStmt {
   pub expression: Box<Expr>,
 }
 
+#[derive(Clone, Debug)]
 pub struct PrintStmt {
   pub expression: Box<Expr>,
 }
 
+#[derive(Clone, Debug)]
 pub struct VarStmt {
   pub name: Token,
   pub initializer: Option<Expr>,
@@ -147,6 +178,20 @@ impl VarStmt {
   }
 }
 
+#[derive(Clone, Debug)]
+pub struct FunStmt {
+  pub name: Token,
+  pub params: Vec<Token>,
+  pub body: BlockStmt,
+}
+
+impl FunStmt {
+  pub fn new(name: Token, params: Vec<Token>, body: BlockStmt) -> Self {
+    Self { name, params, body }
+  }
+}
+
+#[derive(Clone, Debug)]
 pub struct BlockStmt {
   pub statements: Vec<Stmt>,
 }
@@ -157,6 +202,7 @@ impl BlockStmt {
   }
 }
 
+#[derive(Clone, Debug)]
 pub struct IfStmt {
   pub condition: Box<Expr>,
   pub then_branch: Box<Stmt>,
@@ -169,6 +215,7 @@ impl IfStmt{
   }
 }
 
+#[derive(Clone, Debug)]
 pub struct WhileStmt {
   pub condition: Box<Expr>,
   pub body: Box<Stmt>,
@@ -180,6 +227,7 @@ impl WhileStmt {
   }
 }
 
+#[derive(Clone, Debug)]
 pub struct ForStmt {
   pub initializer: Option<Box<Stmt>>,
   pub condition: Option<Box<Expr>>,

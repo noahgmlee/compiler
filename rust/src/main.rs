@@ -17,6 +17,10 @@ mod interpreter;
 
 mod environment;
 
+mod callable;
+
+mod stl;
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     let arg_count = args.len() - 1;
