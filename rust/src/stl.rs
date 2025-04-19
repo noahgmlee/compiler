@@ -39,25 +39,27 @@ impl LoxCallable for ClockCallable {
 #[derive(Clone, Debug)]
 pub struct InterpretedFunction {
   pub declaration: FunStmt,
+  pub closure: Rc<RefCell<Environment>>,
 }
 
 impl InterpretedFunction {
-  pub fn new(declaration: FunStmt) -> Self {
-    Self { declaration }
+  pub fn new(declaration: FunStmt, closure: Rc<RefCell<Environment>>) -> Self {
+    Self { declaration, closure }
   }
 }
 
 impl LoxCallable for InterpretedFunction {
   fn call(&mut self, interpreter: &mut Interpreter, arguments: Vec<LoxValue>) -> Box<dyn Any> {
-    let mut environment = Environment::new_enclosed(Rc::clone(&interpreter.globals));
+    let mut environment = Environment::new_enclosed(self.closure.clone());
     for (i, param) in self.declaration.params.iter().enumerate() {
-      print!("defining {} as {}", param.token.clone(), arguments[i]);
       environment.define(param.token.clone(), arguments[i].clone());
     }
     let result = interpreter.execute_block(&self.declaration.body, Rc::new(RefCell::new(environment)));
     if let Err(e) = result {
-      print!("Error in function call: {:?}", e);
-      return Box::new(LoxValue::Nil);
+      match(e.error_type) {
+        InterpreterErrorType::ReturnValue(value) => return value,
+        _ => panic!("Error in function call: {:?}", e),
+      }
     }
     Box::new(LoxValue::Nil)
   }
@@ -67,6 +69,6 @@ impl LoxCallable for InterpretedFunction {
   }
 
   fn box_clone(&self) -> Box<dyn LoxCallable> {
-    Box::new(InterpretedFunction::new(self.declaration.clone()))
+    Box::new(InterpretedFunction::new(self.declaration.clone(), self.closure.clone()))
   }
 }

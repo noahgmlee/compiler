@@ -5,6 +5,7 @@ use crate::callable::*;
 use crate::stl::*;
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::any::Any;
 
 pub struct Interpreter {
   pub globals: Rc<RefCell<Environment>>,
@@ -12,15 +13,26 @@ pub struct Interpreter {
 }
 
 // This is the error type for "RunTime" errors in our itnerpreter
-#[derive(Debug, Clone)]
+#[derive(Debug)]
+pub enum InterpreterErrorType {
+  FatalError,
+  ReturnValue(Box<dyn Any>),
+}
+
+#[derive(Debug)]
 pub struct InterpreterError {
   pub final_token: Token,
   pub message: String,
+  pub error_type: InterpreterErrorType,
 }
 
 impl InterpreterError {
   pub fn new(final_token: Token, message: String) -> Self {
-    Self { final_token, message }
+    Self { final_token, message, error_type: InterpreterErrorType::FatalError }
+  }
+
+  pub fn new_with_type(final_token: Token, message: String, error_type: InterpreterErrorType) -> Self {
+    Self { final_token, message, error_type }
   }
 
   pub fn print(&self) {
@@ -56,6 +68,7 @@ impl Interpreter {
       Stmt::Block(stmt) => self.visitBlockStmt(stmt),
       Stmt::Expression(expr) => self.visitExpressionStmt(expr),
       Stmt::Print(expr) => self.visitPrintStmt(expr),
+      Stmt::Return(expr) => self.visitReturnStmt(expr),
       Stmt::Var(expr) => self.visitVarStmt(expr),
       Stmt::Fun(expr) => self.visitFunStmt(expr),
       Stmt::If(expr) => self.visitIfStmt(expr),
@@ -303,10 +316,6 @@ impl ExprVisitor<Result<LoxValue, InterpreterError>> for Interpreter {
             ),
           ));
         }
-        print!("Calling function with args: ");
-        for arg in &arguments {
-          print!("{:?} ", arg);
-        }
         let retval = callable.call(self, arguments);
         if let Ok(v) = retval.downcast::<LoxValue>() {
           return Ok(*v);
@@ -409,6 +418,19 @@ impl StmtVisitor<Result<(), InterpreterError>> for Interpreter {
     Ok(())
   }
 
+  fn visitReturnStmt(&mut self, stmt: &RetStmt) -> Result<(), InterpreterError> {
+    let value = if let Some(value) = &stmt.value {
+      self.evaluate(value)?
+    } else {
+      LoxValue::Nil
+    };
+    // Weird but following Robby nystrom for now...
+    // We will catch 
+    return Err(InterpreterError::new_with_type(stmt.keyword.clone(), 
+                                               format!("Return value: {:?}", value), 
+                                               InterpreterErrorType::ReturnValue(Box::new(value))));
+  }
+
   fn visitVarStmt(&mut self, stmt: &VarStmt) -> Result<(), InterpreterError> {
     let value = if let Some(initializer) = &stmt.initializer {
       self.evaluate(initializer)?
@@ -420,7 +442,7 @@ impl StmtVisitor<Result<(), InterpreterError>> for Interpreter {
   }
 
   fn visitFunStmt(&mut self, stmt: &FunStmt) -> Result<(), InterpreterError> {
-    let function = InterpretedFunction::new(stmt.clone());
+    let function = InterpretedFunction::new(stmt.clone(), self.environment.clone());
     self.environment.borrow_mut().define(stmt.name.token.clone(), LoxValue::Callable(Box::new(function)));
     Ok(())
   }

@@ -40,3 +40,11 @@ Parsing:
     - this way all branches reach a terminal expression
     - Nystrom builds a recursive descent parser, so we CANNOT have left-recursive matching. this will create infinite loops
 - recursive descent is really awesome! very easy to follow, clean impl
+
+functions:
+- this part is cool, and fun to contrast against expression oriented langs (Ruby)
+- using exceptions in the interpreter to unwind callstack feels wrong XD
+
+closures:
+- coming from mostly C/C++ these are strange
+- have to allow it to keep grammar rules simple (decalre anything anywhere)

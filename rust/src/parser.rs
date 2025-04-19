@@ -104,6 +104,9 @@ impl Parser {
         if self.match_tokens(vec![TokenType::Print]) {
             return self.print_statement();
         }
+        if self.match_tokens(vec![TokenType::Return]) {
+            return self.return_statement();
+        }
         if self.match_tokens(vec![TokenType::While]) {
             return self.while_statement();
         }
@@ -191,6 +194,17 @@ impl Parser {
         let value = self.expression()?;
         self.consume(TokenType::Semicolon, "Expect ';' after value.")?;
         Ok(Stmt::Print(PrintStmt{expression : Box::new(value)}))
+    }
+
+    fn return_statement(&mut self) -> Result<Stmt, ParserError> {
+        let keyword = self.previous();
+        let value = if !self.check(TokenType::Semicolon) {
+            Some(Box::new(self.expression()?))
+        } else {
+            None
+        };
+        self.consume(TokenType::Semicolon, "Expect ';' after return value.")?;
+        Ok(Stmt::Return(RetStmt::new(keyword, value)))
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, ParserError> {

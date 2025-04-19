@@ -135,6 +135,8 @@ pub trait StmtVisitor<R> {
   #[allow(non_snake_case)]
   fn visitVarStmt(&mut self, stmt: &VarStmt) -> R;
   #[allow(non_snake_case)]
+  fn visitReturnStmt(&mut self, stmt: &RetStmt) -> R;
+  #[allow(non_snake_case)]
   fn visitFunStmt(&mut self, stmt: &FunStmt) -> R;
   #[allow(non_snake_case)]
   fn visitIfStmt(&mut self, stmt: &IfStmt) -> R;
@@ -149,6 +151,7 @@ pub enum Stmt {
   Block(BlockStmt),
   Expression(ExprStmt),
   Print(PrintStmt),
+  Return(RetStmt),
   Var(VarStmt),
   Fun(FunStmt),
   If(IfStmt),
@@ -175,6 +178,18 @@ pub struct VarStmt {
 impl VarStmt {
   pub fn new(name: Token, initializer: Option<Expr>) -> Self {
     Self { name, initializer }
+  }
+}
+
+#[derive(Clone, Debug)]
+pub struct RetStmt {
+  pub keyword: Token,
+  pub value: Option<Box<Expr>>,
+}
+
+impl RetStmt {
+  pub fn new(keyword: Token, value: Option<Box<Expr>>) -> Self {
+    Self { keyword, value }
   }
 }
 
