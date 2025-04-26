@@ -48,3 +48,6 @@ functions:
 closures:
 - coming from mostly C/C++ these are strange
 - have to allow it to keep grammar rules simple (decalre anything anywhere)
+
+resolving:
+- always assume shadowing is an error

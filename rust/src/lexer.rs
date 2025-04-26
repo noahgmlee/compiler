@@ -1,6 +1,7 @@
 use std::fmt;
 use crate::logging::*;
 use crate::callable::*;
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LoxValue {
@@ -24,7 +25,7 @@ impl fmt::Display for LoxValue {
   }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Hash, PartialEq)]
 pub enum TokenType {
   // Single-character tokens
   LeftParen,
@@ -89,6 +90,16 @@ impl Token {
     Self { token_type, token, literal, line }
   }
 }
+
+impl Hash for Token {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    self.token.hash(state);
+    self.token_type.hash(state);
+    self.line.hash(state);
+  }
+}
+
+impl Eq for Token {}  // Eq is implemented since PartialEq is valid
 
 impl fmt::Display for Token {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -3,6 +3,7 @@ use crate::lexer::*;
 use crate::environment::*;
 use crate::callable::*;
 use crate::stl::*;
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
@@ -10,6 +11,7 @@ use std::any::Any;
 pub struct Interpreter {
   pub globals: Rc<RefCell<Environment>>,
   environment: Rc<RefCell<Environment>>,
+  locals: HashMap<Expr, usize>,
 }
 
 // This is the error type for "RunTime" errors in our itnerpreter
@@ -48,7 +50,7 @@ impl Interpreter {
       LoxValue::Callable(Box::new(ClockCallable::new())),
     );
     let globals_ref = Rc::new(RefCell::new(globals));
-    Self { globals: globals_ref.clone(), environment: globals_ref.clone() }
+    Self { globals: globals_ref.clone(), environment: globals_ref.clone(), locals: HashMap::new() }
   }
 
   pub fn interpret(&mut self, stmts: &Vec<Stmt>) {
@@ -61,6 +63,10 @@ impl Interpreter {
         }
       }
     }
+  }
+
+  pub fn resolve(&mut self, expr: Expr, depth: usize) {
+    self.locals.insert(expr, depth);
   }
 
   pub fn execute(&mut self, stmt: &Stmt) -> Result<(), InterpreterError> {
@@ -155,6 +161,27 @@ impl Interpreter {
         left,
         right),  
     )
+  }
+
+  pub fn look_up_variable(&self, name: &Token, expr: &Expr) -> Result<LoxValue, InterpreterError> {
+    if let Some(distance) = self.locals.get(expr) {
+      let value = self.environment.borrow().get_at(*distance, &name.token);
+      match(value) {
+        Ok(v) => return Ok(v),
+        Err(msg) => return Err(InterpreterError::new(
+          name.clone(),
+          msg,
+        )),
+      }
+    }
+    let value = self.globals.borrow().get(&name.token.clone());
+    match value {
+      Ok(v) => Ok(v),
+      Err(msg) => Err(InterpreterError::new(
+        name.clone(),
+        msg,
+      )),
+    }
   }
 }
 
@@ -330,14 +357,26 @@ impl ExprVisitor<Result<LoxValue, InterpreterError>> for Interpreter {
   }
 
   fn visitVariableExpression(&mut self, expr: &VariableExpr) -> Result<LoxValue, InterpreterError> {
-    let value = self.environment.borrow().get(&expr.name.token);
-    match value {
-      Ok(v) => Ok(v),
-      Err(msg) => Err(InterpreterError::new(
-        expr.name.clone(),
-        msg,
-      )),
+    let value = self.look_up_variable(&expr.name, &Expr::Variable(expr.clone()))?;
+    let distance = self.locals.get(&Expr::Variable(expr.clone()));
+    if let Some(distance) = distance {
+      let res = self.environment.borrow_mut().assign_at(*distance, expr.name.token.clone(), value.clone());
+      if let Err(msg) = res {
+        return Err(InterpreterError::new(
+          expr.name.clone(),
+          msg,
+        ));
+      }
+    } else {
+      let res = self.globals.borrow_mut().assign(expr.name.token.clone(), value.clone());
+      if let Err(msg) = res {
+        return Err(InterpreterError::new(
+          expr.name.clone(),
+          msg,
+        ));
+      }
     }
+    return Ok(value);
   }
 
   fn visitAssignExpression(&mut self, expr: &AssignExpr) -> Result<LoxValue, InterpreterError> {

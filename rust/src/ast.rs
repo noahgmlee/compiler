@@ -1,4 +1,5 @@
 use crate::lexer::*;
+use std::hash::{Hash, Hasher};
 
 /////////////// Expressions ///////////////
 /// 
@@ -21,7 +22,7 @@ pub trait ExprVisitor<R> {
   fn visitLogicalExpression(&mut self, expr: &LogicalExpr) -> R;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum Expr {
   Assign(AssignExpr),
   Binary(BinaryExpr),
@@ -32,7 +33,7 @@ pub enum Expr {
   Variable(VariableExpr),
   Logical(LogicalExpr),
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct AssignExpr {
   pub name: Token,
   pub value: Box<Expr>,
@@ -44,7 +45,7 @@ impl AssignExpr {
   }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct BinaryExpr {
   pub left: Box<Expr>,
   pub operator: Token,
@@ -57,7 +58,7 @@ impl BinaryExpr {
   }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct CallExpr {
   pub callee: Box<Expr>,
   pub paren: Token,
@@ -70,7 +71,7 @@ impl CallExpr {
   }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct GroupingExpr {
   pub expression: Box<Expr>,
 }
@@ -81,11 +82,20 @@ impl GroupingExpr {
   }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LiteralExpr {
   pub token_type: TokenType,
   pub literal: LoxValue,
 }
+
+// This is not good enough, but we never resolve literals, so it doesn't matter
+impl Hash for LiteralExpr {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    self.token_type.hash(state);
+  }
+}
+
+impl Eq for LiteralExpr {}
 
 impl LiteralExpr {
   pub fn new(token_type: TokenType, literal: LoxValue) -> Self {
@@ -93,7 +103,7 @@ impl LiteralExpr {
   }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct UnaryExpr {
   pub operator: Token,
   pub right: Box<Expr>,
@@ -105,12 +115,12 @@ impl UnaryExpr {
   }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct VariableExpr {
   pub name: Token,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct LogicalExpr {
   pub left: Box<Expr>,
   pub operator: Token,

@@ -2,6 +2,8 @@ use std::env;
 use std::process;
 use std::fs;
 use std::io::{self, Write};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 mod lexer;
 use lexer::*;
@@ -20,6 +22,8 @@ mod environment;
 mod callable;
 
 mod stl;
+
+mod resolver;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -76,8 +80,10 @@ fn run(source: String) {
     let statements = parser.parse();
     match statements {
         Ok(stmts) => {
-            let mut interpreter = interpreter::Interpreter::new();
-            interpreter.interpret(&stmts);
+            let shared_interpreter = Rc::new(RefCell::new(interpreter::Interpreter::new()));
+            let mut resolver = resolver::Resolver::new(shared_interpreter.clone());
+            resolver.resolve(&stmts);
+            shared_interpreter.borrow_mut().interpret(&stmts);
         },
         Err(_) => {
             eprintln!("parser error!");
