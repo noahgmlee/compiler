@@ -1,15 +1,30 @@
 use std::fmt;
 use crate::logging::*;
 use crate::callable::*;
+use crate::oop::*;
 use std::hash::{Hash, Hasher};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LoxValue {
   Number(f64),
   String(String),
   Boolean(bool),
-  Callable(Box<dyn LoxCallable>),
+  Callable(Rc<RefCell<Box<dyn LoxCallable>>>),
+  Class(LoxClass),
+  Instance(Rc<RefCell<LoxInstance>>),
   Nil,
+}
+
+impl LoxValue {
+  pub fn as_callable(&mut self) -> Option<Rc<RefCell<Box<dyn LoxCallable>>>> {
+    match self {
+      LoxValue::Callable(c) => Some(c.clone()),
+      LoxValue::Class(c) => Some(Rc::new(RefCell::new(Box::new(c.clone())))),
+      _ => None,
+    }
+  }
 }
 
 // Implementing Display for custom formatting
@@ -20,6 +35,8 @@ impl fmt::Display for LoxValue {
           LoxValue::String(s) => write!(f, "{}", s),
           LoxValue::Boolean(b) => write!(f, "{}", b),
           LoxValue::Callable(c) => write!(f, "{:?}", c),
+          LoxValue::Class(c) => write!(f, "{}", c),
+          LoxValue::Instance(c) => write!(f, "{}", c.borrow_mut()),
           LoxValue::Nil => write!(f, "nil"),
       }
   }

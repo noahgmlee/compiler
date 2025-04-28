@@ -1,0 +1,70 @@
+print "the interpreter has started";
+
+class Bagel {}
+var bagel = Bagel();
+print bagel; // Prints "Bagel instance".
+
+class DevonshireCream {
+  serveOn() {
+    return "Scones";
+  }
+}
+
+print DevonshireCream; // Prints "DevonshireCream".
+
+class Bacon {
+  eat() {
+    print "Crunch crunch crunch!";
+  }
+}
+
+Bacon().eat(); // Prints "Crunch crunch crunch!".
+
+class Egotist {
+  speak() {
+    print this;
+  }
+}
+
+var method = Egotist().speak;
+method();
+
+fun returnsInt() {
+  return 5;
+}
+
+print returnsInt();
+
+class Thing {
+  getCallback() {
+    fun localFunction() {
+      print "local callback";
+    }
+
+    return localFunction;
+  }
+}
+
+var callback = Thing().getCallback();
+callback();
+
+// Allowed
+class Foo {
+  init(a, b) {
+    this.a = a;
+    this.b = b;
+    return;
+   }
+ }
+
+var foo = Foo(3, 4);
+print foo;
+print foo.a;
+print foo.b;
+
+// Forbidden
+//class FooFail {
+//  init() {
+//    return 5;
+//  }
+//}

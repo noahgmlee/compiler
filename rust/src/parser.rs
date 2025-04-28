@@ -19,6 +19,7 @@ note that left recursion is intentionally avoided in the grammar.
 use crate::lexer::*;
 use crate::ast::*;
 use crate::logging::*;
+use std::rc::Rc;
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -53,12 +54,30 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Result<Stmt, ParserError> {
-        if self.match_tokens(vec![TokenType::Fun]) {
+        if self.match_tokens(vec![TokenType::Class]) {
+            return self.class_declaration();
+        } else if self.match_tokens(vec![TokenType::Fun]) {
             return self.function("function");
         } else if self.match_tokens(vec![TokenType::Var]) {
             return self.var_declaration();
         }
         self.statement()
+    }
+
+    fn class_declaration(&mut self) -> Result<Stmt, ParserError> {
+        let name = self.consume(TokenType::Identifier, "Expect class name.")?;
+        self.consume(TokenType::LeftBrace, "Expect '{' before class body.")?;
+        let mut methods = Vec::new();
+        while !self.check(TokenType::RightBrace) && !self.is_at_end() {
+            if let Stmt::Fun(fun_stmt) = self.function("method")? {
+                methods.push(fun_stmt);
+            } else {
+                self.synchronize();
+                return Err(ParserError{});
+            }
+        }
+        self.consume(TokenType::RightBrace, "Expect '}' after class body.")?;
+        Ok(Stmt::Class(ClassStmt::new(name, methods)))
     }
 
     fn function(&mut self, kind: &str) -> Result<Stmt, ParserError> {
@@ -80,7 +99,7 @@ impl Parser {
         self.consume(TokenType::RightParen, "Expect ')' after parameters.")?;
         self.consume(TokenType::LeftBrace, &format!("Expect '{{' before {} body.", kind))?;
         let body = self.block()?;
-        Ok(Stmt::Fun(FunStmt::new(name, parameters, BlockStmt::new(body))))
+        Ok(Stmt::Fun(FunStmt::new(name, parameters, Rc::new(BlockStmt::new(body)))))
     }
 
     fn var_declaration(&mut self) -> Result<Stmt, ParserError> {
@@ -224,6 +243,8 @@ impl Parser {
             let value = self.assignment()?;
             if let Expr::Variable(var) = expr {
                 return Ok(Expr::Assign(AssignExpr::new(var.name, Box::new(value))));
+            } else if let Expr::Get(get) = expr {
+                return Ok(Expr::Set(SetExpr::new(get.object, get.name, Box::new(value))));
             }
             self.error(equals, "Invalid assignment target.");
         }
@@ -304,6 +325,9 @@ impl Parser {
         loop {
             if self.match_tokens(vec![TokenType::LeftParen]) {
                 expr = self.finish_call(expr)?;
+            } else if self.match_tokens(vec![TokenType::Dot]) {
+                let name = self.consume(TokenType::Identifier, "Expect property name after '.'")?;
+                expr = Expr::Get(GetExpr::new(Box::new(expr), name));
             } else {
                 break;
             }
@@ -345,6 +369,9 @@ impl Parser {
         }
         if self.match_tokens(vec![TokenType::String]) {
             return Ok(Expr::Literal(LiteralExpr::new(TokenType::String, token.literal.clone())));
+        }
+        if self.match_tokens(vec![TokenType::This]) {
+            return Ok(Expr::This(ThisExpr::new(token.clone())));
         }
         if self.match_tokens(vec![TokenType::Identifier]) {
             return Ok(Expr::Variable(VariableExpr{name : token.clone()}));

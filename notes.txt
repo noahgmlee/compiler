@@ -51,3 +51,10 @@ closures:
 
 resolving:
 - always assume shadowing is an error
+
+side note:
+- that visitor pattern is weird...
+- for Java it saves you a big switch statement I guess?
+    - basically using Runtime polymorphism to invoke the correct "accept" method
+    - accept method virtualness / implementation implements the switch case logic for you
+- in Rust I might be missing something but it seems overly complicated

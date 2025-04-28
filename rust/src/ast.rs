@@ -1,5 +1,6 @@
 use crate::lexer::*;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
+use std::rc::Rc;
 
 /////////////// Expressions ///////////////
 /// 
@@ -11,6 +12,10 @@ pub trait ExprVisitor<R> {
   #[allow(non_snake_case)]
   fn visitCallExpr(&mut self, expr: &CallExpr) -> R;
   #[allow(non_snake_case)]
+  fn visitGetExpr(&mut self, expr: &GetExpr) -> R;
+  #[allow(non_snake_case)]
+  fn visitSetExpr(&mut self, expr: &SetExpr) -> R;
+  #[allow(non_snake_case)]
   fn visitGroupingExpr(&mut self, expr: &GroupingExpr) -> R;
   #[allow(non_snake_case)]
   fn visitLiteralExpr(&mut self, expr: &LiteralExpr) -> R;
@@ -20,6 +25,8 @@ pub trait ExprVisitor<R> {
   fn visitVariableExpression(&mut self, expr: &VariableExpr) -> R;
   #[allow(non_snake_case)]
   fn visitLogicalExpression(&mut self, expr: &LogicalExpr) -> R;
+  #[allow(non_snake_case)]
+  fn visitThisExpression(&mut self, expr: &ThisExpr) -> R;
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -27,11 +34,14 @@ pub enum Expr {
   Assign(AssignExpr),
   Binary(BinaryExpr),
   Call(CallExpr),
+  Get(GetExpr),
+  Set(SetExpr),
   Grouping(GroupingExpr),
   Literal(LiteralExpr),
   Unary(UnaryExpr),
   Variable(VariableExpr),
   Logical(LogicalExpr),
+  This(ThisExpr),
 }
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct AssignExpr {
@@ -68,6 +78,31 @@ pub struct CallExpr {
 impl CallExpr {
   pub fn new(callee: Box<Expr>, paren: Token, arguments: Vec<Expr>) -> Self {
     Self { callee, paren, arguments }
+  }
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct GetExpr {
+  pub object: Box<Expr>,
+  pub name: Token,
+}
+
+impl GetExpr {
+  pub fn new(object: Box<Expr>, name: Token) -> Self {
+    Self { object, name }
+  }
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct SetExpr {
+  pub object: Box<Expr>,
+  pub name: Token,
+  pub value: Box<Expr>,
+}
+
+impl SetExpr {
+  pub fn new(object: Box<Expr>, name: Token, value: Box<Expr>) -> Self {
+    Self { object, name, value }
   }
 }
 
@@ -133,6 +168,17 @@ impl LogicalExpr {
   }
 }
 
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct ThisExpr {
+  pub keyword: Token,
+}
+
+impl ThisExpr {
+  pub fn new(keyword: Token) -> Self {
+    Self { keyword }
+  }
+}
+
 /////////////// Statements ///////////////
 /// 
 pub trait StmtVisitor<R> {
@@ -154,6 +200,8 @@ pub trait StmtVisitor<R> {
   fn visitWhileStmt(&mut self, stmt: &WhileStmt) -> R;
   #[allow(non_snake_case)]
   fn visitForStmt(&mut self, stmt: &ForStmt) -> R;
+  #[allow(non_snake_case)]
+  fn visitClassStmt(&mut self, stmt: &ClassStmt) -> R;
 }
 
 #[derive(Clone, Debug)]
@@ -167,6 +215,7 @@ pub enum Stmt {
   If(IfStmt),
   While(WhileStmt),
   For(ForStmt),
+  Class(ClassStmt),
 }
 
 #[derive(Clone, Debug)]
@@ -207,11 +256,11 @@ impl RetStmt {
 pub struct FunStmt {
   pub name: Token,
   pub params: Vec<Token>,
-  pub body: BlockStmt,
+  pub body: Rc<BlockStmt>,
 }
 
 impl FunStmt {
-  pub fn new(name: Token, params: Vec<Token>, body: BlockStmt) -> Self {
+  pub fn new(name: Token, params: Vec<Token>, body: Rc<BlockStmt>) -> Self {
     Self { name, params, body }
   }
 }
@@ -263,5 +312,17 @@ pub struct ForStmt {
 impl ForStmt {
   pub fn new(initializer: Option<Box<Stmt>>, condition: Option<Box<Expr>>, increment: Option<Box<Expr>>, body: Box<Stmt>) -> Self {
     Self { initializer, condition, increment, body }
+  }
+}
+
+#[derive(Clone, Debug)]
+pub struct ClassStmt {
+  pub name: Token,
+  pub methods: Vec<FunStmt>,
+}
+
+impl ClassStmt {
+  pub fn new(name: Token, methods: Vec<FunStmt>) -> Self {
+    Self { name, methods }
   }
 }

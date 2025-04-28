@@ -1,0 +1,20 @@
+https://learnxinyminutes.com/rust/
+
+- feels like C++ with some of the smart pointers minus anything dangerous
+- ownership is clear at compile time
+- "shared_ptr" is a reference counted wrapper Rc
+  - I am kind of abusing this in the interpreter for the shared environment lol
+
+OOP / Interface inheritance:
+- feels like Go a little bit
+- implement an interface ON a struct essentially
+
+Results:
+- Rust result type very similar to verbose value, err Go syntax
+- value = maybe_value_maybe_error()?; // error propagation is sytatically ez :)
+
+Circular ref:
+- lost a day to a Rc that had a circular dep
+  - the underlying issue was the derived Debug print. It must be passed along with the object
+  - removing it saved stack overflow
+

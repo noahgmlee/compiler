@@ -7,23 +7,16 @@ use std::cell::RefCell;
 
 mod lexer;
 use lexer::*;
-
 mod ast;
-
 mod parser;
 use parser::*;
-
 mod logging;
-
 mod interpreter;
-
 mod environment;
-
 mod callable;
-
 mod stl;
-
 mod resolver;
+mod oop;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -80,8 +73,8 @@ fn run(source: String) {
     let statements = parser.parse();
     match statements {
         Ok(stmts) => {
-            let shared_interpreter = Rc::new(RefCell::new(interpreter::Interpreter::new()));
-            let mut resolver = resolver::Resolver::new(shared_interpreter.clone());
+            let shared_interpreter = Box::new(Rc::new(RefCell::new(interpreter::Interpreter::new())));
+            let mut resolver = Box::new(resolver::Resolver::new(shared_interpreter.clone()));
             resolver.resolve(&stmts);
             shared_interpreter.borrow_mut().interpret(&stmts);
         },

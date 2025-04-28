@@ -8,20 +8,30 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum FunctionType {
   None,
-  Function
+  Function,
+  Initializer,
+  Method
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum ClassType {
+  None,
+  Class
 }
 
 pub struct Resolver {
-  pub interpreter: Rc<RefCell<Interpreter>>,
+  pub interpreter: Box<Rc<RefCell<Interpreter>>>,
   pub scopes: Vec<HashMap<String, bool>>,
   current_function: FunctionType,
+  current_class: ClassType,
 }
 
 impl Resolver {
-  pub fn new(interpreter: Rc<RefCell<Interpreter>>) -> Self {
+  pub fn new(interpreter: Box<Rc<RefCell<Interpreter>>>) -> Self {
     let scopes = Vec::new();
     let current_function = FunctionType::None;
-    Self { interpreter, scopes, current_function }
+    let current_class = ClassType::None;
+    Self { interpreter, scopes, current_function, current_class }
   }
 
   pub fn resolve(&mut self, statements: &[Stmt]) {
@@ -41,6 +51,7 @@ impl Resolver {
       Stmt::If(expr) => self.visitIfStmt(expr),
       Stmt::While(expr) => self.visitWhileStmt(expr),
       Stmt::For(expr) => self.visitForStmt(expr),
+      Stmt::Class(expr) => self.visitClassStmt(expr),
     }
   }
 
@@ -49,11 +60,14 @@ impl Resolver {
       Expr::Assign(expr) => self.visitAssignExpression(expr),
       Expr::Binary(expr) => self.visitBinaryExpr(expr),
       Expr::Call(expr) => self.visitCallExpr(expr),
+      Expr::Get(expr) => self.visitGetExpr(expr),
+      Expr::Set(expr) => self.visitSetExpr(expr),
       Expr::Grouping(expr) => self.visitGroupingExpr(expr),
       Expr::Literal(expr) => self.visitLiteralExpr(expr),
       Expr::Unary(expr) => self.visitUnaryExpr(expr),
       Expr::Variable(expr) => self.visitVariableExpression(expr),
       Expr::Logical(expr) => self.visitLogicalExpression(expr),
+      Expr::This(expr) => self.visitThisExpression(expr),
     }
   }
 
@@ -100,7 +114,9 @@ impl Resolver {
       self.declare(&param);
       self.define(&param);
     }
-    self.resolve_stmt(&Stmt::Block(function.body.clone()));
+    self.resolve_stmt(&Stmt::Block(BlockStmt {
+      statements: function.body.statements.iter().cloned().collect(),
+    }));
     self.end_scope();
     self.current_function = enclosing_function;
   }
@@ -130,6 +146,15 @@ impl ExprVisitor<()> for Resolver {
     }
   }
 
+  fn visitGetExpr(&mut self, expr: &GetExpr)  {
+    self.resolve_expr(&expr.object);
+  }
+
+  fn visitSetExpr(&mut self, expr: &SetExpr)  {
+    self.resolve_expr(&expr.value);
+    self.resolve_expr(&expr.object);
+  }
+
   fn visitVariableExpression(&mut self, expr: &VariableExpr)  {
     if let Some(scope) = self.scopes.last() {
       if let Some(defined) = scope.get(&expr.name.token) {
@@ -151,6 +176,14 @@ impl ExprVisitor<()> for Resolver {
   fn visitLogicalExpression(&mut self, expr: &LogicalExpr)  {
     self.resolve_expr(&expr.left);
     self.resolve_expr(&expr.right);
+  }
+
+  fn visitThisExpression(&mut self, expr: &ThisExpr) -> () {
+    if self.current_class == ClassType::None {
+      eprintln!("Error: Can't use 'this' outside of a class.");
+      panic!();
+    }
+    self.resolve_local(Expr::This(expr.clone()), &expr.keyword);
   }
 }
 
@@ -191,6 +224,10 @@ impl StmtVisitor<()> for Resolver {
       panic!();
     }
     if let Some(value) = &stmt.value {
+      if self.current_function == FunctionType::Initializer {
+        eprintln!("Error: Can't return a value from an initializer.");
+        panic!();
+      }
       self.resolve_expr(value);
     }
   }
@@ -207,5 +244,23 @@ impl StmtVisitor<()> for Resolver {
     self.declare(&stmt.name);
     self.define(&stmt.name);
     self.resolve_function(stmt, FunctionType::Function);
+  }
+
+  fn visitClassStmt(&mut self, stmt: &ClassStmt) -> () {
+    let enclosing_class = self.current_class.clone();
+    self.current_class = ClassType::Class;
+    self.declare(&stmt.name);
+    self.define(&stmt.name);
+    self.begin_scope();
+    self.scopes.last_mut().unwrap().insert("this".to_string(), true);
+    for method in &stmt.methods {
+      let mut function_type = FunctionType::Method;
+      if (method.name.token == "init") {
+        function_type = FunctionType::Initializer;
+      }
+      self.resolve_function(method, function_type);
+    }
+    self.end_scope();
+    self.current_class = enclosing_class;
   }
 }
