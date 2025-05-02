@@ -26,6 +26,8 @@ pub trait ExprVisitor<R> {
   #[allow(non_snake_case)]
   fn visitLogicalExpression(&mut self, expr: &LogicalExpr) -> R;
   #[allow(non_snake_case)]
+  fn visitSuperExpression(&mut self, expr: &SuperExpr) -> R;
+  #[allow(non_snake_case)]
   fn visitThisExpression(&mut self, expr: &ThisExpr) -> R;
 }
 
@@ -41,6 +43,7 @@ pub enum Expr {
   Unary(UnaryExpr),
   Variable(VariableExpr),
   Logical(LogicalExpr),
+  Super(SuperExpr),
   This(ThisExpr),
 }
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -165,6 +168,18 @@ pub struct LogicalExpr {
 impl LogicalExpr {
   pub fn new(left: Box<Expr>, operator: Token, right: Box<Expr>) -> Self {
     Self { left, operator, right }
+  }
+}
+
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub struct SuperExpr {
+  pub keyword: Token,
+  pub method: Token,
+}
+
+impl SuperExpr {
+  pub fn new(keyword: Token, method: Token) -> Self {
+    Self { keyword, method }
   }
 }
 
@@ -318,11 +333,12 @@ impl ForStmt {
 #[derive(Clone, Debug)]
 pub struct ClassStmt {
   pub name: Token,
+  pub superclass: Option<Box<Expr>>,
   pub methods: Vec<FunStmt>,
 }
 
 impl ClassStmt {
-  pub fn new(name: Token, methods: Vec<FunStmt>) -> Self {
-    Self { name, methods }
+  pub fn new(name: Token, superclass: Option<Box<Expr>>,  methods: Vec<FunStmt>) -> Self {
+    Self { name, superclass, methods }
   }
 }

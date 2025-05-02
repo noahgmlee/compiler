@@ -116,6 +116,7 @@ impl Interpreter {
       Expr::Unary(expr) => self.visitUnaryExpr(expr),
       Expr::Variable(expr) => self.visitVariableExpression(expr),
       Expr::Logical(expr) => self.visitLogicalExpression(expr),
+      Expr::Super(expr) => self.visitSuperExpression(expr),
       Expr::This(expr) => self.visitThisExpression(expr),
     }
   }
@@ -434,6 +435,56 @@ impl ExprVisitor<Result<LoxValue, InterpreterError>> for Interpreter {
     self.evaluate(&expr.right)
   }
 
+  fn visitSuperExpression(&mut self, expr: &SuperExpr) -> Result<LoxValue, InterpreterError> {
+      let distance = self.locals.get(&Expr::Super(expr.clone()));
+      if let Some(distance) = distance {
+        let superclass = self.environment.borrow().get_at(*distance, "super");
+        match superclass {
+          Ok(superclass) => {
+            if let LoxValue::Class(sc) = superclass {
+              let instance = self.environment.borrow().get_at(*distance - 1, "this");
+              match instance {
+                Ok(instance) => {
+                  if let LoxValue::Instance(instance) = instance {
+                    let object = instance;
+                    let method = sc.methods.get(&expr.method.token);
+                    match method {
+                      Some(method) => {
+                        return Ok(LoxValue::Callable(Rc::new(RefCell::new(Box::new(method.clone().bind(object.clone()))))))
+                      }
+                      None => {
+                        return Err(InterpreterError::new(
+                          expr.method.clone(),
+                          format!("Undefined property '{}'.", expr.method.token),
+                        ));
+                      }
+                    }
+                  } else {
+                    return Err(InterpreterError::new(
+                      expr.keyword.clone(),
+                      format!("Super must be called from a class."),
+                    ));
+                  }
+                }
+                Err(msg) => return Err(InterpreterError::new(
+                  expr.keyword.clone(),
+                  msg,
+                )),
+              }
+            }
+          }
+          Err(msg) => return Err(InterpreterError::new(
+            expr.keyword.clone(),
+            msg,
+          )),
+        }
+      }
+      return Err(InterpreterError::new(
+        expr.keyword.clone(),
+        "couldn't find superclass".to_string(),
+      ))
+  }
+
   fn visitThisExpression(&mut self, expr: &ThisExpr) -> Result<LoxValue, InterpreterError> {
     let value = self.look_up_variable(&expr.keyword, &Expr::This(expr.clone()))?;
     Ok(value)
@@ -520,13 +571,38 @@ impl StmtVisitor<Result<(), InterpreterError>> for Interpreter {
   }
 
   fn visitClassStmt(&mut self, stmt: &ClassStmt) -> Result<(), InterpreterError> {
+    let superclass = if let Some(Expr::Variable(superclass)) = &stmt.superclass.as_deref() {
+      let superclass_internal = self.evaluate(&Expr::Variable(VariableExpr { name: superclass.name.clone() }))?;
+      if let LoxValue::Class(klass) = superclass_internal {
+        Some(Rc::new(RefCell::new(klass)))
+      } else {
+        return Err(InterpreterError::new(
+          superclass.name.clone(),
+          format!("Superclass must be a class."),
+        ));
+      }
+    } else {
+      None
+    };
+    let has_superclass = superclass.is_some();
     self.environment.borrow_mut().define(stmt.name.token.clone(), LoxValue::Nil);
+
+    if let Some(sc) = &superclass {
+      self.environment = Rc::new(RefCell::new(Environment::new_enclosed(Rc::clone(&self.environment))));
+      self.environment.borrow_mut().define("super".to_string(), LoxValue::Class(sc.borrow_mut().clone()));
+    }
     let mut methods = HashMap::new();
     for method in &stmt.methods {
       let function = LoxFunction::new(Rc::new(method.clone()), self.environment.clone(), false);
       methods.insert(method.name.token.clone(), function);
     }
-    let klass = LoxValue::Class(LoxClass::new(stmt.name.token.clone(), methods));
+    let klass = LoxValue::Class(LoxClass::new(stmt.name.token.clone(), superclass, methods));
+    if has_superclass {
+      let enclosing = self.environment.borrow().enclosing.clone();
+      if let Some(enclosing) = &enclosing {
+        self.environment =  enclosing.clone();
+      }
+    }
     match self.environment.borrow_mut().assign(stmt.name.token.clone(), klass) {
       Ok(_) => {}
       Err(msg) => return Err(InterpreterError::new(

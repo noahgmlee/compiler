@@ -66,6 +66,12 @@ impl Parser {
 
     fn class_declaration(&mut self) -> Result<Stmt, ParserError> {
         let name = self.consume(TokenType::Identifier, "Expect class name.")?;
+        let superclass = if self.match_tokens(vec![TokenType::Less]) {
+            let sc_token = self.consume(TokenType::Identifier, "Expect superclass name.")?;
+            Some(Box::new(Expr::Variable( VariableExpr { name: sc_token } )))
+        } else {
+            None
+        };
         self.consume(TokenType::LeftBrace, "Expect '{' before class body.")?;
         let mut methods = Vec::new();
         while !self.check(TokenType::RightBrace) && !self.is_at_end() {
@@ -77,7 +83,7 @@ impl Parser {
             }
         }
         self.consume(TokenType::RightBrace, "Expect '}' after class body.")?;
-        Ok(Stmt::Class(ClassStmt::new(name, methods)))
+        Ok(Stmt::Class(ClassStmt::new(name, superclass, methods)))
     }
 
     fn function(&mut self, kind: &str) -> Result<Stmt, ParserError> {
@@ -369,6 +375,12 @@ impl Parser {
         }
         if self.match_tokens(vec![TokenType::String]) {
             return Ok(Expr::Literal(LiteralExpr::new(TokenType::String, token.literal.clone())));
+        }
+        if self.match_tokens(vec![TokenType::Super]) {
+            let keyword = self.previous();
+            self.consume(TokenType::Dot, "Expect '.' after 'super'.")?;
+            let method = self.consume(TokenType::Identifier, "Expect superclass method name.")?;
+            return Ok(Expr::Super(SuperExpr::new(keyword, method)));
         }
         if self.match_tokens(vec![TokenType::This]) {
             return Ok(Expr::This(ThisExpr::new(token.clone())));

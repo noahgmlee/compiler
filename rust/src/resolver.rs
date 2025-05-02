@@ -16,7 +16,8 @@ enum FunctionType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum ClassType {
   None,
-  Class
+  Class,
+  SubClass
 }
 
 pub struct Resolver {
@@ -67,6 +68,7 @@ impl Resolver {
       Expr::Unary(expr) => self.visitUnaryExpr(expr),
       Expr::Variable(expr) => self.visitVariableExpression(expr),
       Expr::Logical(expr) => self.visitLogicalExpression(expr),
+      Expr::Super(expr) => self.visitSuperExpression(expr),
       Expr::This(expr) => self.visitThisExpression(expr),
     }
   }
@@ -178,6 +180,17 @@ impl ExprVisitor<()> for Resolver {
     self.resolve_expr(&expr.right);
   }
 
+  fn visitSuperExpression(&mut self, expr: &SuperExpr) -> () {
+      if self.current_class == ClassType::None {
+        eprint!("Error: Can't use 'super' outside of a class.");
+        panic!();
+      } else if self.current_class != ClassType::SubClass {
+        eprint!("Error: 'super' can only be used in a subclass.");
+        panic!();
+      }
+      self.resolve_local(Expr::Super(expr.clone()), &expr.keyword);
+  }
+
   fn visitThisExpression(&mut self, expr: &ThisExpr) -> () {
     if self.current_class == ClassType::None {
       eprintln!("Error: Can't use 'this' outside of a class.");
@@ -251,6 +264,19 @@ impl StmtVisitor<()> for Resolver {
     self.current_class = ClassType::Class;
     self.declare(&stmt.name);
     self.define(&stmt.name);
+
+    if let Some(Expr::Variable(superclass)) = &stmt.superclass.as_deref() {
+      if stmt.name.token == superclass.name.token {
+        eprintln!("Error: Class can't inherit from itself.");
+        panic!();
+      }
+      self.current_class = ClassType::SubClass;
+      self.resolve_expr(&Expr::Variable(superclass.to_owned()));
+    }
+    if stmt.superclass.is_some() {
+      self.begin_scope();
+      self.scopes.last_mut().unwrap().insert("super".to_string(), true);
+    }
     self.begin_scope();
     self.scopes.last_mut().unwrap().insert("this".to_string(), true);
     for method in &stmt.methods {
@@ -261,6 +287,9 @@ impl StmtVisitor<()> for Resolver {
       self.resolve_function(method, function_type);
     }
     self.end_scope();
+    if stmt.superclass.is_some() {
+      self.end_scope();
+    }
     self.current_class = enclosing_class;
   }
 }

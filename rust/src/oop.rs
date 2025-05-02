@@ -10,6 +10,7 @@ use std::cell::RefCell;
 #[derive(Debug, Clone)]
 pub struct LoxClass {
   pub name: String,
+  pub superclass: Option<Rc<RefCell<LoxClass>>>,
   pub methods: std::collections::HashMap<String, LoxFunction>,
 }
 
@@ -26,8 +27,8 @@ impl fmt::Display for LoxClass {
 }
 
 impl LoxClass {
-  pub fn new(name: String, methods: HashMap<String, LoxFunction> ) -> Self {
-    Self { name, methods }
+  pub fn new(name: String, superclass: Option<Rc<RefCell<LoxClass>>>, methods: HashMap<String, LoxFunction> ) -> Self {
+    Self { name, superclass, methods }
   }
 }
 
@@ -65,6 +66,12 @@ impl LoxInstance {
 
     if let Some(method) = this.borrow().class.methods.get(name) {
       return Ok(LoxValue::Callable(Rc::new(RefCell::new(Box::new(method.clone().bind(this.clone()))))));
+    }
+
+    if let Some(superclass) = &this.borrow().class.superclass {
+      if let Some(method) = superclass.borrow().methods.get(name) {
+        return Ok(LoxValue::Callable(Rc::new(RefCell::new(Box::new(method.clone().bind(this.clone()))))));
+      }
     }
 
     Err(format!("Undefined property '{}'.", name))
