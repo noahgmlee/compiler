@@ -1,6 +1,6 @@
 # rust build artifacts
-rust/target
+interpreter/rust/target
 Cargo.lock
 
 # go build artifacts
-go/lox
+interpreter/go/lox
