@@ -3,3 +3,10 @@ print "Hello, world!";
 print true;
 print "one";
 print 2 + 1;
+
+fun echo(n) {
+  print n;
+  return n;
+}
+
+print echo(1) + echo(2) + echo(4) + echo(5);

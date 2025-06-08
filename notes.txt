@@ -58,3 +58,11 @@ side note:
     - basically using Runtime polymorphism to invoke the correct "accept" method
     - accept method virtualness / implementation implements the switch case logic for you
 - in Rust I might be missing something but it seems overly complicated
+
+retro on expressions:
+- recursive descent is really cool for building the AST evaluation order
+- grouping expr is useful to the programmer for evaluatin precedense:
+    - print echo(echo(1) + echo(2)) + echo(echo(4) + echo(5));
+- this is why the grouping expression is the bottom of the recursion stack
+    - a grouped expression is pretty much a primary expression placeholder. ensures evaluation order
+    - the grouping condition (left paren) actually adds a new expression call onto the stack to start the recrusive descent from the top!
