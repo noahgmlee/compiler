@@ -3,4 +3,7 @@ Byte Code Compiler & VM:
   - at least at this point I cannot have more than 256 constants in a chunk
 - stack based VM for tracking temporary variables
   - mimicking intermediate return values from walking an expression in an AST
-- 
+  - a little less efficient that having GPRs for intermediate / temporary storage
+    - (note that register based VMs do exist)
+- trie for keyword / user-defined name identification
+  - deterministic finite automaton (DFA), FSA, SA are abstracts that the above fits
