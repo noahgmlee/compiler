@@ -7,3 +7,9 @@ Byte Code Compiler & VM:
     - (note that register based VMs do exist)
 - trie for keyword / user-defined name identification
   - deterministic finite automaton (DFA), FSA, SA are abstracts that the above fits
+- recursive descent parser in rust or jlox had enough context to invoke lowest allowed expression parser handler
+  - in clox we have a function dispatch per expression type, so no prescedence recursion
+  - we add more global state to the scan - compile - VM pipeline with an active prescedence
+- the above leads to a table of functions per expression type:
+  - expression type? why yes, some expressions are known by the first token consumed, some are "infix" "1 + 2"
+ 
