@@ -12,4 +12,7 @@ Byte Code Compiler & VM:
   - we add more global state to the scan - compile - VM pipeline with an active prescedence
 - the above leads to a table of functions per expression type:
   - expression type? why yes, some expressions are known by the first token consumed, some are "infix" "1 + 2"
+  - so the columns are whether you dispatch the prefix, or infix
+- for example, in a binary operation the '-' needs to push the next resolved expression onto the stack before emitting the OP_SUBTRACT byte.
+  - contrarily if prefix we negate the next resolved expression
  
