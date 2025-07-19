@@ -1,6 +1,7 @@
 {
   "files.associations": {
     "debug.h": "c",
-    "scanner.h": "c"
+    "scanner.h": "c",
+    "vm.h": "c"
   }
 }
