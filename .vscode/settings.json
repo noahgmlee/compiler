@@ -2,6 +2,7 @@
   "files.associations": {
     "debug.h": "c",
     "scanner.h": "c",
-    "vm.h": "c"
+    "vm.h": "c",
+    "stdint.h": "c"
   }
 }
