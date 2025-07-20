@@ -23,3 +23,7 @@ Byte Code Compiler & VM:
   - vm gets a 2-byte op w second indicating local's index on the stack
 - function stack in VM is super simple
   - stack offset is SP for function - compiler just needs to know local var offsets relative to SP
+- closures as an exception to the stack based variable semantics
+  - if a local is used by a closure, it must outlive its scope...
+  - https://craftinginterpreters.com/closures.html - I think the outer middle inner example is misleading
+    - points 1 and 2 make sense... but the call stack depth is irrelevant.
