@@ -21,3 +21,5 @@ Byte Code Compiler & VM:
   - the compiler holds locals in a list and emits to stack on declaration
   - the compiler is quite simple, and eats a O(n) look up for resolving future user
   - vm gets a 2-byte op w second indicating local's index on the stack
+- function stack in VM is super simple
+  - stack offset is SP for function - compiler just needs to know local var offsets relative to SP

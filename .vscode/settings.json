@@ -3,6 +3,9 @@
     "debug.h": "c",
     "scanner.h": "c",
     "vm.h": "c",
-    "stdint.h": "c"
+    "stdint.h": "c",
+    "value.h": "c",
+    "memory.h": "c",
+    "object.h": "c"
   }
 }
