@@ -84,11 +84,13 @@ void freeObjects() {
 void markObject(Obj* object) {
   if (object == NULL) return;
   if (object->isMarked) return;
+
 #ifdef DEBUG_LOG_GC
   printf("%p mark ", (void*)object);
   printValue(OBJ_VAL(object));
   printf("\n");
 #endif
+
   object->isMarked = true;
 
   if (vm.grayCapacity < vm.grayCount + 1) {
@@ -126,9 +128,10 @@ static void blackenObject(Obj* object) {
       }
       break;
     }
-    case OBJ_UPVALUE:
+    case OBJ_UPVALUE: {
       markValue(((ObjUpvalue*)object)->closed);
       break;
+    }
     case OBJ_FUNCTION: {
       ObjFunction* function = (ObjFunction*)object;
       markObject((Obj*)function->name);
@@ -172,6 +175,7 @@ static void sweep() {
   Obj* object = vm.objects;
   while (object != NULL) {
     if (object->isMarked) {
+      object->isMarked = false;
       previous = object;
       object = object->next;
     } else {
